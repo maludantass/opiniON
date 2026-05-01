@@ -7,10 +7,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.use('/api/opinions', opinionRoutes);
+app.use('/api', opinionRoutes);
 
 app.get('/', (req, res) => {
-  res.send('opiniON API is running!');
+    res.send('opiniON API is running!');
 });
 
 export default app;
