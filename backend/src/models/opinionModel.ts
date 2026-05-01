@@ -1,4 +1,4 @@
-import pool from '../config/db';
+import pool from '../config/db.js';
 
 // Neste arquivo você colocará as funções que interagem diretamente com o PostgreSQL
 export const getLatestOpinion = async () => {
@@ -6,7 +6,7 @@ export const getLatestOpinion = async () => {
     // Exemplo de como seria a query:
     // const result = await pool.query('SELECT * FROM opinions ORDER BY id DESC LIMIT 1');
     // return result.rows[0];
-    
+
     // Retorno simulado temporário para testar o fluxo antes da tabela existir
     return {
       id: 1,

@@ -1,5 +1,5 @@
-import { Request, Response } from 'express';
-import * as opinionModel from '../models/opinionModel';
+import type { Request, Response } from 'express';
+import * as opinionModel from '../models/opinionModel.js';
 
 export const getOpinion = async (req: Request, res: Response) => {
   try {

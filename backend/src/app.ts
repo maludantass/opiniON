@@ -1,12 +1,11 @@
 import express from 'express';
 import cors from 'cors';
+import opinionRoutes from './routes/opinionRoutes.js';
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
-
-import opinionRoutes from './routes/opinionRoutes';
 
 app.use('/api/opinions', opinionRoutes);
 
