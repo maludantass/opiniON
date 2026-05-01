@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import pg from 'pg';
+import pg from '../../node_modules/@types/pg/index.js';
 import { Sequelize } from 'sequelize';
 import { initUserModel } from '../models/User.js';
 
