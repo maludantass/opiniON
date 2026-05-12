@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import pg from 'pg';
 import { Sequelize } from 'sequelize';
 import { initJogoModel } from '../models/Jogo.js';
+import { initPostModel } from '../models/Post.js';
 import { initUserModel } from '../models/User.js';
 
 dotenv.config();
@@ -21,3 +22,4 @@ export const sequelize = new Sequelize(
 
 initUserModel(sequelize);
 initJogoModel(sequelize);
+initPostModel(sequelize);
