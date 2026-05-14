@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import { registerUser } from "../services/api";
 
 export default function Cadastro() {
@@ -15,29 +16,29 @@ export default function Cadastro() {
     const trimmedEmail = email.trim().toLowerCase();
 
     if (!trimmedName || !trimmedEmail || !password) {
-      alert("Preencha todos os campos para continuar.");
+      toast.error("Preencha todos os campos para continuar.");
       return;
     }
 
     if (trimmedName.length < 3) {
-      alert("O nome deve possuir pelo menos 3 caracteres.");
+      toast.error("O nome deve possuir pelo menos 3 caracteres.");
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailRegex.test(trimmedEmail)) {
-      alert("Digite um e-mail válido.");
+      toast.error("Digite um e-mail válido.");
       return;
     }
 
     if (password.length < 6) {
-      alert("A senha deve possuir pelo menos 6 caracteres.");
+      toast.error("A senha deve possuir pelo menos 6 caracteres.");
       return;
     }
 
     if (password.length > 32) {
-      alert("A senha deve possuir no máximo 32 caracteres.");
+      toast.error("A senha deve possuir no máximo 32 caracteres.");
       return;
     }
 
@@ -48,14 +49,14 @@ export default function Cadastro() {
         password,
       });
 
-      alert("Cadastro realizado com sucesso! Faça login para continuar.");
+      toast.success("Cadastro realizado com sucesso! Faça login para continuar.");
 
       navigate("/login");
     } catch (err) {
       if (err instanceof Error) {
-        alert(err.message);
+        toast.error(err.message);
       } else {
-        alert("Não foi possível realizar o cadastro. Tente novamente.");
+        toast.error("Não foi possível realizar o cadastro. Tente novamente.");
       }
     }
   };
