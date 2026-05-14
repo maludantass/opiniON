@@ -1,18 +1,36 @@
+import { Op } from 'sequelize';
 import { AppError } from '../errors/AppError.js';
 import type { UserRating } from '../models/UserRating.js';
+import { JogoRepository } from '../repositories/jogoRepository.js';
 import { UserRatingRepository } from '../repositories/userRatingRepository.js';
 import { UserRepository } from '../repositories/userRepository.js';
 
-export type CompatibilityLabel = 'muito compatível' | 'compatível' | 'pouco compatível';
+export type CompatibilityLabel = 'Alto' | 'Médio' | 'Baixo';
+
+export interface SharedWork {
+    jogoId: number;
+    title: string;
+    imageUrl: string | null;
+    myRating: number | null;
+    theirRating: number | null;
+}
 
 export interface UserCompatibility {
     userId: number;
     email: string;
+    username: string | null;
+    avatarUrl: string | null;
     score: number;
     label: CompatibilityLabel;
     sharedRatings: number;
     sharedFavorites: number;
     sharedListed: number;
+}
+
+export interface UserCompatibilityDetail extends UserCompatibility {
+    categoryScores: { jogos: number };
+    sharedFavoriteWorks: SharedWork[];
+    commonTags: string[];
 }
 
 export interface CompatibilityDistribution {
@@ -47,6 +65,7 @@ function calculateScore(ratingsA: UserRating[], ratingsB: UserRating[]): {
     sharedRatings: number;
     sharedFavorites: number;
     sharedListed: number;
+    sharedFavoriteIds: number[];
 } {
     const mapA = new Map(ratingsA.map(r => [r.jogoId, r.rating]));
     const mapB = new Map(ratingsB.map(r => [r.jogoId, r.rating]));
@@ -70,7 +89,8 @@ function calculateScore(ratingsA: UserRating[], ratingsB: UserRating[]): {
     const listedB = new Set(ratingsB.filter(r => r.listed).map(r => r.jogoId));
     const listScore = jaccardSimilarity(listedA, listedB);
 
-    const sharedFavorites = [...favsA].filter(x => favsB.has(x)).length;
+    const sharedFavoriteIds = [...favsA].filter(x => favsB.has(x));
+    const sharedFavorites = sharedFavoriteIds.length;
     const sharedListed = [...listedA].filter(x => listedB.has(x)).length;
 
     const hasRatings = commonRated.length > 0;
@@ -78,7 +98,7 @@ function calculateScore(ratingsA: UserRating[], ratingsB: UserRating[]): {
     const hasListed = listedA.size > 0 || listedB.size > 0;
 
     if (!hasRatings && !hasFavs && !hasListed) {
-        return { score: 0, sharedRatings: 0, sharedFavorites: 0, sharedListed: 0 };
+        return { score: 0, sharedRatings: 0, sharedFavorites: 0, sharedListed: 0, sharedFavoriteIds: [] };
     }
 
     let weighted = 0;
@@ -91,25 +111,26 @@ function calculateScore(ratingsA: UserRating[], ratingsB: UserRating[]): {
     const normalized = totalWeight > 0 ? weighted / totalWeight : 0;
     const score = Math.round(normalized * 100);
 
-    return { score, sharedRatings: commonRated.length, sharedFavorites, sharedListed };
+    return { score, sharedRatings: commonRated.length, sharedFavorites, sharedListed, sharedFavoriteIds };
 }
 
 function toLabel(score: number): CompatibilityLabel {
-    if (score >= 70) return 'muito compatível';
-    if (score >= 40) return 'compatível';
-    return 'pouco compatível';
+    if (score >= 70) return 'Alto';
+    if (score >= 40) return 'Médio';
+    return 'Baixo';
 }
 
 export class CompatibilityService {
     constructor(
         private readonly userRatingRepository = new UserRatingRepository(),
         private readonly userRepository = new UserRepository(),
+        private readonly jogoRepository = new JogoRepository(),
     ) {}
 
     async listCompatibleUsers(currentUserId: number): Promise<UserCompatibility[]> {
         const [allRatings, allUsers] = await Promise.all([
             this.userRatingRepository.findAll(),
-            this.userRepository.findAll({ attributes: ['id', 'email'] }),
+            this.userRepository.findAll({ attributes: ['id', 'email', 'username', 'avatarUrl'] }),
         ]);
 
         const ratingsByUser = new Map<number, UserRating[]>();
@@ -121,7 +142,7 @@ export class CompatibilityService {
         }
 
         const myRatings = ratingsByUser.get(currentUserId) ?? [];
-        const userMap = new Map(allUsers.map(u => [u.id, u.email]));
+        const userMap = new Map(allUsers.map(u => [u.id, u]));
 
         const results: UserCompatibility[] = [];
 
@@ -132,9 +153,12 @@ export class CompatibilityService {
             const { score, sharedRatings, sharedFavorites, sharedListed } =
                 calculateScore(myRatings, theirRatings);
 
+            const u = userMap.get(user.id)!;
             results.push({
                 userId: user.id,
-                email: userMap.get(user.id) ?? '',
+                email: u.email,
+                username: u.username ?? null,
+                avatarUrl: u.avatarUrl ?? null,
                 score,
                 label: toLabel(score),
                 sharedRatings,
@@ -149,7 +173,7 @@ export class CompatibilityService {
     async getCompatibilityWithUser(
         currentUserId: number,
         targetUserId: number,
-    ): Promise<UserCompatibility> {
+    ): Promise<UserCompatibilityDetail> {
         if (currentUserId === targetUserId) {
             throw new AppError('Não é possível calcular compatibilidade consigo mesmo', 400);
         }
@@ -164,17 +188,49 @@ export class CompatibilityService {
             this.userRatingRepository.findByUserId(targetUserId),
         ]);
 
-        const { score, sharedRatings, sharedFavorites, sharedListed } =
+        const { score, sharedRatings, sharedFavorites, sharedListed, sharedFavoriteIds } =
             calculateScore(myRatings, theirRatings);
+
+        const myRatingMap = new Map(myRatings.map(r => [r.jogoId, r.rating]));
+        const theirRatingMap = new Map(theirRatings.map(r => [r.jogoId, r.rating]));
+
+        let sharedFavoriteWorks: SharedWork[] = [];
+        let commonTags: string[] = [];
+
+        if (sharedFavoriteIds.length > 0) {
+            const jogos = await this.jogoRepository.findAll({
+                where: { id: { [Op.in]: sharedFavoriteIds } },
+                attributes: ['id', 'title', 'imageUrl', 'tags'],
+            });
+
+            sharedFavoriteWorks = jogos.map(j => ({
+                jogoId: j.id,
+                title: j.title,
+                imageUrl: j.imageUrl,
+                myRating: myRatingMap.get(j.id) ?? null,
+                theirRating: theirRatingMap.get(j.id) ?? null,
+            }));
+
+            const tagSet = new Set<string>();
+            for (const j of jogos) {
+                for (const tag of j.tags) tagSet.add(tag);
+            }
+            commonTags = [...tagSet].sort();
+        }
 
         return {
             userId: targetUserId,
             email: targetUser.email,
+            username: targetUser.username ?? null,
+            avatarUrl: targetUser.avatarUrl ?? null,
             score,
             label: toLabel(score),
             sharedRatings,
             sharedFavorites,
             sharedListed,
+            categoryScores: { jogos: score },
+            sharedFavoriteWorks,
+            commonTags,
         };
     }
 

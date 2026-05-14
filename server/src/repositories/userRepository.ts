@@ -23,7 +23,7 @@ export class UserRepository {
     }
 
     create(
-        attrs: Pick<UserAttrs, 'email' | 'passwordHash'>,
+        attrs: Pick<UserAttrs, 'email' | 'passwordHash'> & { username?: string | null; avatarUrl?: string | null },
         options?: { transaction?: Transaction },
     ): Promise<User> {
         return User.create(attrs as CreationAttributes<User>, options);
@@ -31,7 +31,7 @@ export class UserRepository {
 
     async updateById(
         id: number,
-        values: Partial<Pick<UserAttrs, 'email' | 'passwordHash'>>,
+        values: Partial<Pick<UserAttrs, 'email' | 'passwordHash' | 'username' | 'avatarUrl'>>,
     ): Promise<number> {
         const [affected] = await User.update(values, { where: { id } });
         return affected;

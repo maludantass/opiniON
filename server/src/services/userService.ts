@@ -15,6 +15,7 @@ function bcryptRounds(): number {
 export interface RegisterInput {
     email: string;
     password: string;
+    username?: string | null;
 }
 
 export interface LoginInput {
@@ -31,12 +32,16 @@ export interface UserListFilter {
 export interface UpdateUserInput {
     email?: string;
     password?: string;
+    username?: string | null;
+    avatarUrl?: string | null;
 }
 
 function toPublicUser(user: User) {
     return {
         id: user.id,
         email: user.email,
+        username: user.username ?? null,
+        avatarUrl: user.avatarUrl ?? null,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
     };
@@ -64,7 +69,8 @@ export class UserService {
         }
 
         const passwordHash = await bcrypt.hash(password, bcryptRounds());
-        const user = await this.userRepository.create({ email, passwordHash });
+        const username = input.username?.trim() || null;
+        const user = await this.userRepository.create({ email, passwordHash, username });
 
         return toPublicUser(user);
     }
@@ -140,7 +146,7 @@ export class UserService {
             throw new AppError('Usuário não encontrado', 404);
         }
 
-        const updates: Partial<Pick<UserAttrs, 'email' | 'passwordHash'>> = {};
+        const updates: Partial<Pick<UserAttrs, 'email' | 'passwordHash' | 'username' | 'avatarUrl'>> = {};
 
         if (input.email !== undefined) {
             const normalizedEmail = input.email.trim().toLowerCase();
@@ -171,6 +177,14 @@ export class UserService {
                 bcryptRounds(),
             );
             updates.passwordHash = passwordHash;
+        }
+
+        if (input.username !== undefined) {
+            updates.username = input.username?.trim() || null;
+        }
+
+        if (input.avatarUrl !== undefined) {
+            updates.avatarUrl = input.avatarUrl || null;
         }
 
         if (Object.keys(updates).length === 0) {

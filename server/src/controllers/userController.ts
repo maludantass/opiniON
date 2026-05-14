@@ -21,6 +21,7 @@ export const register = async (
         const data = await userService.register({
             email: req.body?.email,
             password: req.body?.password,
+            username: req.body?.username ?? req.body?.name ?? null,
         });
         sendSuccess(res, data, 201);
     } catch (e) {
@@ -86,6 +87,8 @@ export const updateUser = async (
             {
                 email: req.body?.email,
                 password: req.body?.password,
+                username: req.body?.username,
+                avatarUrl: req.body?.avatarUrl,
             },
             authId,
         );

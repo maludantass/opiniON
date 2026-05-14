@@ -5,6 +5,8 @@ export interface UserAttrs {
     id: number;
     email: string;
     passwordHash: string;
+    username?: string | null;
+    avatarUrl?: string | null;
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -13,6 +15,8 @@ export class User extends Model<UserAttrs> implements UserAttrs {
     declare id: number;
     declare email: string;
     declare passwordHash: string;
+    declare username: string | null;
+    declare avatarUrl: string | null;
     declare readonly createdAt: Date;
     declare readonly updatedAt: Date;
 }
@@ -33,6 +37,16 @@ export function initUserModel(sequelize: Sequelize): void {
             passwordHash: {
                 type: DataTypes.STRING(255),
                 allowNull: false,
+            },
+            username: {
+                type: DataTypes.STRING(60),
+                allowNull: true,
+                defaultValue: null,
+            },
+            avatarUrl: {
+                type: DataTypes.STRING(2048),
+                allowNull: true,
+                defaultValue: null,
             },
         },
         {

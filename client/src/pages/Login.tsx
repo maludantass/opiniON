@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import { loginUser } from "../services/api";
 
 export default function Login() {
@@ -9,19 +10,20 @@ export default function Login() {
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
+    
     try {
       const data = await loginUser({ email, password });
 
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
 
+      toast.success("Login realizado com sucesso!");
       navigate("/");
     } catch (err) {
       if (err instanceof Error) {
-        alert(err.message);
+        toast.error(err.message);
       } else {
-        alert(String(err));
+        toast.error("Ocorreu um erro no login.");
       }
     }
   };

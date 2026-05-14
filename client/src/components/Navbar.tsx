@@ -1,10 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 export default function Navbar() {
   const [openProfileMenu, setOpenProfileMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  function navClass(path: string) {
+    const active = location.pathname === path;
+    return active
+      ? "bg-purple-700 text-white px-5 py-2 rounded-full text-sm font-medium"
+      : "text-gray-700 text-sm hover:text-purple-700 transition-colors";
+  }
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -36,33 +44,11 @@ export default function Navbar() {
 
       {/* Nav links */}
       <div className="flex items-center gap-8">
-        <Link
-          to="/"
-          className="bg-purple-700 text-white px-5 py-2 rounded-full text-sm font-medium hover:bg-purple-800 transition-colors"
-        >
-          Home
-        </Link>
-
-        <Link
-          to="/comunidade"
-          className="text-gray-700 text-sm hover:text-purple-700 transition-colors"
-        >
-          Comunidade
-        </Link>
-
-        <Link
-          to="/buscar"
-          className="text-gray-700 text-sm hover:text-purple-700 transition-colors"
-        >
-          Buscar
-        </Link>
-
-        <Link
-          to="/saiba-mais"
-          className="text-gray-700 text-sm hover:text-purple-700 transition-colors"
-        >
-          Saiba mais
-        </Link>
+        <Link to="/" className={navClass("/")}>Home</Link>
+        <Link to="/comunidade" className={navClass("/comunidade")}>Comunidade</Link>
+        <Link to="/dashboard" className={navClass("/dashboard")}>Dashboard</Link>
+        <Link to="/buscar" className={navClass("/buscar")}>Buscar</Link>
+        <Link to="/publicacao" className={navClass("/publicacao")}>Publicação</Link>
       </div>
 
       {/* Profile dropdown */}

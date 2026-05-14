@@ -70,10 +70,13 @@ export const upsertRating = async (req: Request, res: Response): Promise<void> =
             }
         }
 
+        const ratingValue: number | null | undefined =
+            rating === undefined ? undefined : (rating === null ? null : Number(rating));
+
         const data = await compatibilityService.upsertRating(authId, jogoId, {
-            rating: rating !== undefined ? (rating === null ? null : Number(rating)) : undefined,
-            favorited: typeof favorited === 'boolean' ? favorited : undefined,
-            listed: typeof listed === 'boolean' ? listed : undefined,
+            ...(ratingValue !== undefined && { rating: ratingValue }),
+            ...(typeof favorited === 'boolean' && { favorited }),
+            ...(typeof listed === 'boolean' && { listed }),
         });
 
         sendSuccess(res, data);
