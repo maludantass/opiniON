@@ -8,6 +8,7 @@ import CompatibilidadeDetalhe from './pages/CompatibilidadeDetalhe';
 import Dashboard from './pages/Dashboard';
 import PrivateRoute from './components/PrivateRoute';
 import Publicacao from "./pages/Publicacao";
+import Buscar from './pages/Buscar';
 
 function App() {
     return (
@@ -21,6 +22,7 @@ function App() {
                 <Route path="/comunidade" element={<PrivateRoute><Comunidade /></PrivateRoute>} />
                 <Route path="/comunidade/:userId" element={<PrivateRoute><CompatibilidadeDetalhe /></PrivateRoute>} />
                 <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+                <Route path="/buscar" element={<PrivateRoute><Buscar /></PrivateRoute>} />
                 <Route path="/publicacao" element={<Publicacao />} />
             </Routes>
         </Router>

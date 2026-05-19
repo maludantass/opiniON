@@ -36,7 +36,7 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="w-full bg-white border-b border-gray-100 px-8 py-3 flex items-center justify-between relative">
+    <nav className="w-full bg-[#EEEEFF] px-8 py-3 flex items-center justify-between relative">
       {/* Logo */}
       <Link to="/">
         <img src="/opinion-roxo.png" alt="OpiniOn" className="h-8 w-auto" />
