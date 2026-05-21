@@ -202,6 +202,19 @@ export class UserService {
         return toPublicUser(updatedUser);
     }
 
+    async listPublicUsers(limit = 10) {
+        const users = await this.userRepository.findAll({
+            limit,
+            order: [['createdAt', 'DESC']],
+            attributes: ['id', 'username', 'avatarUrl'],
+        });
+        return users.map((u) => ({
+            id: u.id,
+            username: u.username ?? null,
+            avatarUrl: u.avatarUrl ?? null,
+        }));
+    }
+
     async deleteUser(id: number, authUserId: number) {
         if (id !== authUserId) {
             throw new AppError('Não autorizado a remover este usuário', 403);

@@ -41,6 +41,16 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 };
 
+export const getPublicUsers = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const limit = Math.min(Number(req.query['limit'] ?? 10), 20);
+        const data = await userService.listPublicUsers(Number.isFinite(limit) ? limit : 10);
+        sendSuccess(res, data);
+    } catch (e) {
+        handleError(res, e);
+    }
+};
+
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
     try {
         const filter: UserListFilter = {};

@@ -13,6 +13,7 @@ export class UserRoutes {
     private register(): void {
         this.router.post('/register', userController.register);
         this.router.post('/login', userController.login);
+        this.router.get('/public', userController.getPublicUsers);
         this.router.get('/', authJwt(), userController.getUsers);
         this.router.put('/:id', authJwt(), userController.updateUser);
         this.router.delete('/:id', authJwt(), userController.deleteUser);

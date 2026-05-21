@@ -34,6 +34,16 @@ export const createPost = async (
     }
 };
 
+export const getFeedPosts = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const limit = Math.min(Number(req.query['limit'] ?? 6), 20);
+        const data = await postService.listFeedPosts(Number.isFinite(limit) ? limit : 6);
+        sendSuccess(res, data);
+    } catch (e) {
+        handleError(res, e);
+    }
+};
+
 export const getPosts = async (req: Request, res: Response): Promise<void> => {
     try {
         const filter: PostListFilter = {};
