@@ -13,6 +13,7 @@ export class CompatibilityRoutes {
     private register(): void {
         this.router.get('/users', authJwt(), compatibilityController.listCompatibleUsers);
         this.router.get('/distribution', authJwt(), compatibilityController.getDistribution);
+        this.router.get('/stats', authJwt(), compatibilityController.getDashboardStats);
         this.router.get('/users/:userId', authJwt(), compatibilityController.getCompatibilityWithUser);
         this.router.get('/ratings', authJwt(), compatibilityController.getMyRatings);
         this.router.post('/ratings', authJwt(), compatibilityController.upsertRating);

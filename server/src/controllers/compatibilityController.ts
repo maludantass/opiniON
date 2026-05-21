@@ -96,3 +96,15 @@ export const getMyRatings = async (req: Request, res: Response): Promise<void> =
         handleError(res, e);
     }
 };
+
+export const getDashboardStats = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const authId = req.authUserId;
+        if (authId === undefined) { sendError(res, 'Não autenticado', 401); return; }
+
+        const data = await compatibilityService.getDashboardStats(authId);
+        sendSuccess(res, data);
+    } catch (e) {
+        handleError(res, e);
+    }
+};

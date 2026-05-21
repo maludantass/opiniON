@@ -106,6 +106,28 @@ export interface UserRating {
   rating: number | null;
   favorited: boolean;
   listed: boolean;
+  createdAt?: string;
+}
+
+export interface DashboardStats {
+  topFavoritedGame: {
+    jogoId: number;
+    title: string;
+    imageUrl: string | null;
+    favoritesCount: number;
+  } | null;
+  myTagDistribution: { tag: string; count: number }[];
+  rareTaste: {
+    percentage: number;
+    rareFavoritesCount: number;
+    totalFavoritesCount: number;
+  } | null;
+  primeiroAmor: {
+    jogoId: number;
+    title: string;
+    imageUrl: string | null;
+    createdAt: string;
+  } | null;
 }
 
 export async function getCompatibilityDistribution(token: string): Promise<CompatibilityAnalytics> {
@@ -123,5 +145,14 @@ export async function getMyRatings(token: string): Promise<UserRating[]> {
   });
   const result = await response.json();
   if (!response.ok) throw new Error(result.message || "Erro ao buscar avaliações");
+  return result.data;
+}
+
+export async function getDashboardStats(token: string): Promise<DashboardStats> {
+  const response = await fetch(`${API_URL}/compatibility/stats`, {
+    headers: authHeaders(token),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || "Erro ao buscar estatísticas");
   return result.data;
 }
