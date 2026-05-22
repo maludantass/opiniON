@@ -19,6 +19,52 @@ export class User extends Model<UserAttrs> implements UserAttrs {
     declare avatarUrl: string | null;
     declare readonly createdAt: Date;
     declare readonly updatedAt: Date;
+
+    declare followers?: User[];
+    declare following?: User[];
+}
+
+const publicUserAttributes = ['id', 'username', 'avatarUrl'] as const;
+
+export function setupUserFollowScopes(): void {
+    User.addScope('withFollowers', {
+        include: [
+            {
+                model: User,
+                as: 'followers',
+                attributes: [...publicUserAttributes],
+                through: { attributes: [] },
+            },
+        ],
+    });
+
+    User.addScope('withFollowing', {
+        include: [
+            {
+                model: User,
+                as: 'following',
+                attributes: [...publicUserAttributes],
+                through: { attributes: [] },
+            },
+        ],
+    });
+
+    User.addScope('withFollowRelations', {
+        include: [
+            {
+                model: User,
+                as: 'followers',
+                attributes: [...publicUserAttributes],
+                through: { attributes: [] },
+            },
+            {
+                model: User,
+                as: 'following',
+                attributes: [...publicUserAttributes],
+                through: { attributes: [] },
+            },
+        ],
+    });
 }
 
 export function initUserModel(sequelize: Sequelize): void {

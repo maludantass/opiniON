@@ -35,7 +35,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
             email: req.body?.email,
             password: req.body?.password,
         });
-        sendSuccess(res, data, 200);
+        sendSuccess(res, data);
     } catch (e) {
         handleError(res, e);
     }
