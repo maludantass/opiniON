@@ -3,7 +3,11 @@ import pg from 'pg';
 import { Sequelize } from 'sequelize';
 import { initJogoModel } from '../models/Jogo.js';
 import { initPostModel } from '../models/Post.js';
-import { initUserModel } from '../models/User.js';
+import { initUserModel, setupUserFollowScopes } from '../models/User.js';
+import {
+    initUserFollowModel,
+    setupUserFollowAssociations,
+} from '../models/UserFollow.js';
 import { initUserRatingModel } from '../models/UserRating.js';
 
 dotenv.config();
@@ -22,6 +26,9 @@ export const sequelize = new Sequelize(
 );
 
 initUserModel(sequelize);
+initUserFollowModel(sequelize);
 initJogoModel(sequelize);
 initPostModel(sequelize);
 initUserRatingModel(sequelize);
+setupUserFollowAssociations();
+setupUserFollowScopes();

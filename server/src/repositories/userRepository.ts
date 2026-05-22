@@ -11,6 +11,27 @@ export class UserRepository {
         return User.findByPk(id, options);
     }
 
+    findByIdWithFollowers(
+        id: number,
+        options?: Omit<FindOptions<User>, 'where'>,
+    ): Promise<User | null> {
+        return User.scope('withFollowers').findByPk(id, options);
+    }
+
+    findByIdWithFollowing(
+        id: number,
+        options?: Omit<FindOptions<User>, 'where'>,
+    ): Promise<User | null> {
+        return User.scope('withFollowing').findByPk(id, options);
+    }
+
+    findByIdWithFollowRelations(
+        id: number,
+        options?: Omit<FindOptions<User>, 'where'>,
+    ): Promise<User | null> {
+        return User.scope('withFollowRelations').findByPk(id, options);
+    }
+
     findByEmail(
         email: string,
         options?: Omit<FindOptions<User>, 'where'>,

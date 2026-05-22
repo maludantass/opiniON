@@ -1,8 +1,17 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import toast from "react-hot-toast";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { getCompatibilityDetail, type UserCompatibilityDetail, type SharedWork } from "../services/api";
+import {
+  followUser,
+  unfollowUser,
+  getFollowStatus,
+  getFollowers,
+  getCompatibilityDetail,
+  type UserCompatibilityDetail,
+  type SharedWork,
+} from "../services/api";
 
 function UserIcon() {
   return (
@@ -113,16 +122,56 @@ export default function CompatibilidadeDetalhe() {
   const [data, setData] = useState<UserCompatibilityDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [isSelf, setIsSelf] = useState(false);
+  const [followersTotal, setFollowersTotal] = useState(0);
+  const [followLoading, setFollowLoading] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token || !userId) return;
 
-    getCompatibilityDetail(token, Number(userId))
-      .then(setData)
+    const targetId = Number(userId);
+
+    Promise.all([
+      getCompatibilityDetail(token, targetId),
+      getFollowStatus(token, targetId),
+      getFollowers(targetId, { limit: 1 }),
+    ])
+      .then(([detail, status, followers]) => {
+        setData(detail);
+        setIsFollowing(status.isFollowing);
+        setIsSelf(status.isSelf);
+        setFollowersTotal(followers.total);
+      })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, [userId]);
+
+  const handleFollowToggle = async () => {
+    const token = localStorage.getItem("token");
+    if (!token || !userId || isSelf) return;
+
+    setFollowLoading(true);
+    try {
+      const targetId = Number(userId);
+      if (isFollowing) {
+        await unfollowUser(token, targetId);
+        setIsFollowing(false);
+        setFollowersTotal((n) => Math.max(0, n - 1));
+        toast.success("Você deixou de seguir este usuário");
+      } else {
+        await followUser(token, targetId);
+        setIsFollowing(true);
+        setFollowersTotal((n) => n + 1);
+        toast.success("Você está seguindo este usuário");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao atualizar follow");
+    } finally {
+      setFollowLoading(false);
+    }
+  };
 
   const displayName = data?.username ?? data?.email.split("@")[0] ?? "Usuário";
   const handle = data?.username ? `@${data.username}` : data?.email ?? "";
@@ -146,25 +195,36 @@ export default function CompatibilidadeDetalhe() {
         {!loading && !error && data && (
           <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8">
 
-            {/* Painel esquerdo — perfil */}
             <div className="rounded-3xl bg-[#d8d3ff] flex flex-col items-center justify-center p-8 gap-4 min-h-[360px]">
               <Avatar avatarUrl={data.avatarUrl} size={100} />
               <div className="text-center">
                 <p className="text-xl font-bold text-[#3b1f8c]">{displayName}</p>
                 <p className="text-sm text-[#6544ad]">{handle}</p>
+                <p className="mt-1 text-xs text-[#6544ad]/80">
+                  {followersTotal} {followersTotal === 1 ? "seguidor" : "seguidores"}
+                </p>
               </div>
-              <button
-                type="button"
-                className="mt-2 rounded-full border-2 border-[#6C3BFF] bg-white px-6 py-2 text-sm font-medium text-[#6C3BFF] transition hover:bg-[#6C3BFF] hover:text-white"
-              >
-                Seguir
-              </button>
+              {!isSelf && (
+                <button
+                  type="button"
+                  onClick={handleFollowToggle}
+                  disabled={followLoading}
+                  className={`mt-2 rounded-full border-2 px-6 py-2 text-sm font-medium transition disabled:opacity-60 ${
+                    isFollowing
+                      ? "border-[#6C3BFF] bg-[#6C3BFF] text-white hover:bg-[#5a2fd9]"
+                      : "border-[#6C3BFF] bg-white text-[#6C3BFF] hover:bg-[#6C3BFF] hover:text-white"
+                  }`}
+                >
+                  {followLoading
+                    ? "..."
+                    : isFollowing
+                      ? "Deixar de seguir"
+                      : "Seguir"}
+                </button>
+              )}
             </div>
 
-            {/* Painel direito — métricas */}
             <div className="flex flex-col gap-8">
-
-              {/* Nota geral */}
               <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
                 <h3 className="text-lg font-bold text-[#6C3BFF] mb-4">Nota geral</h3>
                 <div className="flex items-center gap-8">
@@ -183,7 +243,6 @@ export default function CompatibilidadeDetalhe() {
                 </div>
               </div>
 
-              {/* Nota por categorias */}
               <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
                 <h3 className="text-base font-bold text-[#6C3BFF] mb-4 text-center">
                   Nota por categorias
@@ -196,7 +255,6 @@ export default function CompatibilidadeDetalhe() {
                 </div>
               </div>
 
-              {/* Temas favoritos */}
               {data.commonTags.length > 0 && (
                 <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
                   <h3 className="text-base font-bold text-[#6C3BFF] mb-3">Temas favoritos</h3>
@@ -213,7 +271,6 @@ export default function CompatibilidadeDetalhe() {
                 </div>
               )}
 
-              {/* Obras favoritas em comum */}
               {data.sharedFavoriteWorks.length > 0 && (
                 <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
                   <h3 className="text-base font-bold text-[#6C3BFF] mb-4">

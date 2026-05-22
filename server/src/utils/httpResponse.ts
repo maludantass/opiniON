@@ -1,4 +1,5 @@
 import type { Response } from 'express';
+import { AppError } from '../errors/AppError.js';
 
 export function sendSuccess<T>(
     res: Response,
@@ -19,4 +20,12 @@ export function sendError(
         error: message,
         ...(details !== undefined ? { details } : {}),
     });
+}
+
+export function handleError(res: Response, e: unknown): Response {
+    if (e instanceof AppError) {
+        return sendError(res, e.message, e.statusCode, e.details);
+    }
+    console.error(e);
+    return sendError(res, 'Erro interno no servidor', 500);
 }
