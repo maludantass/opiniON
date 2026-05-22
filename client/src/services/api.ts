@@ -206,3 +206,96 @@ export async function getDashboardStats(token: string): Promise<DashboardStats> 
   if (!response.ok) throw new Error(result.message || "Erro ao buscar estatísticas");
   return result.data;
 }
+
+export interface PublicFollowUser {
+  id: number;
+  username: string | null;
+  avatarUrl: string | null;
+}
+
+export interface FollowListResponse {
+  items: PublicFollowUser[];
+  total: number;
+}
+
+export interface FollowStatus {
+  isFollowing: boolean;
+  isSelf: boolean;
+}
+
+function parseApiError(
+  result: { error?: string; message?: string },
+  fallback: string,
+): never {
+  throw new Error(result.error || result.message || fallback);
+}
+
+export async function followUser(
+  token: string,
+  userId: number,
+): Promise<{ following: boolean }> {
+  const response = await fetch(`${API_URL}/users/${userId}/follow`, {
+    method: "POST",
+    headers: authHeaders(token),
+  });
+  const result = await response.json();
+  if (!response.ok) parseApiError(result, "Erro ao seguir usuário");
+  return result.data;
+}
+
+export async function unfollowUser(
+  token: string,
+  userId: number,
+): Promise<{ following: boolean }> {
+  const response = await fetch(`${API_URL}/users/${userId}/follow`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  const result = await response.json();
+  if (!response.ok) parseApiError(result, "Erro ao deixar de seguir");
+  return result.data;
+}
+
+export async function getFollowStatus(
+  token: string,
+  userId: number,
+): Promise<FollowStatus> {
+  const response = await fetch(`${API_URL}/users/${userId}/follow-status`, {
+    headers: authHeaders(token),
+  });
+  const result = await response.json();
+  if (!response.ok) parseApiError(result, "Erro ao verificar follow");
+  return result.data;
+}
+
+export async function getFollowers(
+  userId: number,
+  params?: { limit?: number; offset?: number },
+): Promise<FollowListResponse> {
+  const query = new URLSearchParams();
+  if (params?.limit !== undefined) query.set("limit", String(params.limit));
+  if (params?.offset !== undefined) query.set("offset", String(params.offset));
+  const qs = query.toString();
+  const response = await fetch(
+    `${API_URL}/users/${userId}/followers${qs ? `?${qs}` : ""}`,
+  );
+  const result = await response.json();
+  if (!response.ok) parseApiError(result, "Erro ao buscar seguidores");
+  return result.data;
+}
+
+export async function getFollowing(
+  userId: number,
+  params?: { limit?: number; offset?: number },
+): Promise<FollowListResponse> {
+  const query = new URLSearchParams();
+  if (params?.limit !== undefined) query.set("limit", String(params.limit));
+  if (params?.offset !== undefined) query.set("offset", String(params.offset));
+  const qs = query.toString();
+  const response = await fetch(
+    `${API_URL}/users/${userId}/following${qs ? `?${qs}` : ""}`,
+  );
+  const result = await response.json();
+  if (!response.ok) parseApiError(result, "Erro ao buscar seguindo");
+  return result.data;
+}
