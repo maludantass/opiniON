@@ -4,6 +4,7 @@ import { DataTypes, Model } from 'sequelize';
 export interface PostAttrs {
     id: number;
     userId: number;
+    jogoId: number | null;
     content: string;
     mediaUrl: string | null;
     mediaType: 'image' | 'video' | null;
@@ -14,6 +15,7 @@ export interface PostAttrs {
 export class Post extends Model<PostAttrs> implements PostAttrs {
     declare id: number;
     declare userId: number;
+    declare jogoId: number | null;
     declare content: string;
     declare mediaUrl: string | null;
     declare mediaType: 'image' | 'video' | null;
@@ -32,6 +34,10 @@ export function initPostModel(sequelize: Sequelize): void {
             userId: {
                 type: DataTypes.INTEGER,
                 allowNull: false,
+            },
+            jogoId: {
+                type: DataTypes.INTEGER,
+                allowNull: true,
             },
             content: {
                 type: DataTypes.TEXT,

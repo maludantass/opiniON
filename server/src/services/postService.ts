@@ -3,6 +3,8 @@ import { Op } from 'sequelize';
 import { AppError } from '../errors/AppError.js';
 import type { Post, PostAttrs } from '../models/Post.js';
 import { PostRepository } from '../repositories/postRepository.js';
+import { JogoRepository } from '../repositories/jogoRepository.js';
+import { UserRepository } from '../repositories/userRepository.js';
 
 export type PostMediaType = 'image' | 'video';
 
@@ -136,7 +138,11 @@ function toPublicPost(post: Post) {
 }
 
 export class PostService {
-    constructor(private readonly postRepository = new PostRepository()) {}
+    constructor(
+        private readonly postRepository = new PostRepository(),
+        private readonly userRepository = new UserRepository(),
+        private readonly jogoRepository = new JogoRepository(),
+    ) {}
 
     async createPost(userId: number, input: CreatePostInput) {
         const media = normalizeMedia(input.mediaUrl, input.mediaType);
@@ -231,6 +237,50 @@ export class PostService {
         }
 
         return toPublicPost(updatedPost);
+    }
+
+    async listFeedPosts(limit = 6) {
+        const posts = await this.postRepository.findAll({
+            limit,
+            order: [['createdAt', 'DESC']],
+        });
+
+        const userIds = [...new Set(posts.map((p) => p.userId))];
+        const jogoIds = posts.map((p) => p.jogoId).filter((id): id is number => id !== null);
+
+        const [users, jogos] = await Promise.all([
+            userIds.length > 0
+                ? this.userRepository.findAll({
+                    where: { id: { [Op.in]: userIds } },
+                    attributes: ['id', 'email', 'username', 'avatarUrl'],
+                })
+                : Promise.resolve([]),
+            jogoIds.length > 0
+                ? this.jogoRepository.findAll({
+                    where: { id: { [Op.in]: jogoIds } },
+                    attributes: ['id', 'title', 'imageUrl', 'tags'],
+                })
+                : Promise.resolve([]),
+        ]);
+
+        const userMap = new Map(users.map((u) => [u.id, u]));
+        const jogoMap = new Map(jogos.map((j) => [j.id, j]));
+
+        return posts.map((p) => {
+            const user = userMap.get(p.userId);
+            const jogo = p.jogoId ? jogoMap.get(p.jogoId) ?? null : null;
+            return {
+                id: p.id,
+                content: p.content,
+                createdAt: p.createdAt,
+                user: user
+                    ? { id: user.id, username: user.username ?? null, avatarUrl: user.avatarUrl ?? null, email: user.email }
+                    : null,
+                jogo: jogo
+                    ? { id: jogo.id, title: jogo.title, imageUrl: jogo.imageUrl, tags: jogo.tags }
+                    : null,
+            };
+        });
     }
 
     async deletePost(id: number, userId: number) {

@@ -11,6 +11,7 @@ export class PostRoutes {
     }
 
     private register(): void {
+        this.router.get('/feed', postController.getFeedPosts);
         this.router.get('/', postController.getPosts);
         this.router.get('/:id', postController.getPostById);
         this.router.post('/', authJwt(), postController.createPost);
