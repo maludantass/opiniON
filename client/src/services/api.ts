@@ -186,11 +186,12 @@ export async function getPublicUsers(limit = 10): Promise<PublicUser[]> {
   return result.data;
 }
 
-export async function getJogos(params?: { limit?: number; offset?: number; title?: string }): Promise<Jogo[]> {
+export async function getJogos(params?: { limit?: number; offset?: number; title?: string; tag?: string }): Promise<Jogo[]> {
   const query = new URLSearchParams();
   if (params?.limit !== undefined) query.set("limit", String(params.limit));
   if (params?.offset !== undefined) query.set("offset", String(params.offset));
   if (params?.title) query.set("title", params.title);
+  if (params?.tag) query.set("tag", params.tag);
   const qs = query.toString();
   const response = await fetch(`${API_URL}/jogos${qs ? `?${qs}` : ""}`);
   const result = await response.json();

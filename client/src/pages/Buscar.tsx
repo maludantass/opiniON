@@ -1,39 +1,29 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { getJogos, type Jogo } from '../services/api';
 
 const CATEGORIES = [
-  { id: 1, name: 'Luta' },
-  { id: 2, name: 'On-line' },
-  { id: 3, name: 'Crime' },
-  { id: 4, name: 'Clássicos' },
-  { id: 5, name: 'Simulador' },
-  { id: 6, name: 'Guerra' },
-  { id: 7, name: 'Sobrevivência' },
-  { id: 8, name: 'Histórico' },
-  { id: 9, name: 'Luta' },
-  { id: 10, name: 'On-line' },
-  { id: 11, name: 'Crime' },
-  { id: 12, name: 'Clássicos' },
-  { id: 13, name: 'Simulador' },
-  { id: 14, name: 'Guerra' },
-  { id: 15, name: 'Sobrevivência' },
-  { id: 16, name: 'Histórico' },
-  { id: 17, name: 'Esportes' },
-  { id: 18, name: 'Ação' },
-  { id: 19, name: 'RPG' },
-  { id: 20, name: 'Corrida' },
-];
-
-const MOCK_GAMES = [
-  { id: 1, title: 'The Sims 4', desc: 'Solte a imaginação e crie um mundo único de Sims para se expressar! Explore e personalize cada detalhe, dos Sims às casas e muito mais.', rating: '4/5' },
-  { id: 2, title: 'Dispatch', desc: 'Gerencie uma equipe de heróis e planeje quem enviar para as emergências, tudo enquanto equilibra a política do escritório, relacionamentos pessoais e sua própria jornada para se tornar um herói.', rating: '5/5' },
-  { id: 3, title: 'Grand Theft Auto V', desc: 'Três criminosos com perfis completamente diferentes se unem para realizar golpes perigosos e sobreviver em uma cidade dominada pelo crime, corrupção e traição. Inspirado em Grand Theft Auto V.', rating: '5/5' },
-  { id: 4, title: 'Terraria', desc: 'Em um mundo aberto repleto de mistérios, perigos e criaturas fantásticas, o jogador explora, constrói, minera e enfrenta inimigos poderosos para sobreviver e descobrir segredos escondidos em cada canto de Terraria.', rating: '3/5' },
-  { id: 5, title: 'Fortnite', desc: 'Em uma ilha em constante mudança, jogadores enfrentam batalhas intensas, constroem estratégias e sobrevivem até o fim em confrontos cheios de ação e eventos dinâmicos em Fortnite.', rating: '2/5' },
-  { id: 6, title: 'Ghost of Yotei', desc: 'Em uma jornada marcada por vingança e honra, uma guerreira percorre terras perigosas enfrentando inimigos implacáveis e desafios intensos em busca de seu próprio destino em Ghost of Yotei.', rating: '5/5' },
-  { id: 7, title: 'Detroit: Become Human', desc: 'Em um futuro onde androides convivem com humanos, três personagens seguem caminhos distintos que colocam em jogo liberdade, preconceito e escolhas capazes de mudar o destino da sociedade em Detroit: Become Human.', rating: '5/5' },
-  { id: 8, title: 'Candy Crush Saga', desc: 'Em um mundo colorido e cheio de desafios, jogadores combinam doces e resolvem quebra-cabeças cada vez mais difíceis para avançar por fases divertidas e viciantes em Candy Crush Saga.', rating: '3/5' },
+  { id: 1, name: 'Ação', tag: 'Action' },
+  { id: 2, name: 'Aventura', tag: 'Adventure' },
+  { id: 3, name: 'RPG', tag: 'RPG' },
+  { id: 4, name: 'Simulação', tag: 'Simulation' },
+  { id: 5, name: 'Estratégia', tag: 'Strategy' },
+  { id: 6, name: 'Indie', tag: 'Indie' },
+  { id: 7, name: 'Casual', tag: 'Casual' },
+  { id: 8, name: 'Terror', tag: 'Horror' },
+  { id: 9, name: 'Puzzle', tag: 'Puzzle' },
+  { id: 10, name: 'Multijogador', tag: 'Multiplayer' },
+  { id: 11, name: 'Tiro', tag: 'Shooter' },
+  { id: 12, name: 'Anime', tag: 'Anime' },
+  { id: 13, name: 'Pixel Art', tag: 'Pixel Graphics' },
+  { id: 14, name: 'Rica em História', tag: 'Story Rich' },
+  { id: 15, name: 'Cooperativo', tag: 'Co-op' },
+  { id: 16, name: 'Um Jogador', tag: 'Singleplayer' },
+  { id: 17, name: 'Visual Novel', tag: 'Visual Novel' },
+  { id: 18, name: 'Exploração', tag: 'Exploration' },
+  { id: 19, name: 'Gratuito', tag: 'Free to Play' },
+  { id: 20, name: 'Ação e Aventura', tag: 'Action-Adventure' },
 ];
 
 function SearchIcon() {
@@ -61,31 +51,54 @@ function BookmarkIcon() {
   );
 }
 
-function CategoryCard({ name, bgColor }: { name: string; bgColor: string }) {
+function CategoryCard({ name, bgColor, onClick }: { name: string; bgColor: string; onClick: () => void }) {
   return (
-    <div className={`relative h-28 overflow-hidden rounded-xl ${bgColor} shadow-sm transition hover:scale-105 hover:shadow-md cursor-pointer flex items-center`}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative h-28 w-full overflow-hidden rounded-xl ${bgColor} shadow-sm transition hover:scale-105 hover:shadow-md cursor-pointer flex items-center`}
+    >
       <div className="h-[90%] w-16 ml-1 bg-gradient-to-br from-blue-400 via-sky-300 to-amber-300 rounded-md shadow-inner flex-shrink-0" />
       <div className="flex-1 flex items-end justify-center pl-1 pr-1 pb-4">
         <span className="font-medium text-white tracking-wider text-sm truncate">{name}</span>
       </div>
-    </div>
+    </button>
   );
 }
 
-function GameResultCard({ game }: { game: typeof MOCK_GAMES[0] }) {
+function GameResultCard({ game }: { game: Jogo }) {
   return (
     <div className="flex bg-white rounded-2xl p-4 shadow-sm border border-gray-100 gap-4 transition hover:shadow-md">
-      {/* Imagem do Jogo (Placeholder) */}
-      <div className="w-24 h-36 flex-shrink-0 rounded-xl bg-gradient-to-br from-red-400 via-pink-300 to-yellow-300 shadow-inner overflow-hidden" />
+      {game.imageUrl ? (
+        <img
+          src={game.imageUrl}
+          alt={game.title}
+          className="w-24 h-36 flex-shrink-0 rounded-xl object-cover shadow-inner"
+        />
+      ) : (
+        <div className="w-24 h-36 flex-shrink-0 rounded-xl bg-gradient-to-br from-[#6C3BFF] via-[#9B7BFF] to-[#C4ADFF] shadow-inner overflow-hidden flex items-center justify-center">
+          <span className="text-white text-xs font-medium text-center px-1">{game.title}</span>
+        </div>
+      )}
       
       <div className="flex flex-col flex-1 py-1 overflow-hidden">
         <h3 className="font-bold text-gray-900 text-sm mb-1">{game.title}</h3>
-        <p className="text-[10px] text-gray-500 leading-relaxed flex-1 line-clamp-4">
-          {game.desc}
-        </p>
+        {game.description && (
+          <p className="text-[10px] text-gray-500 leading-relaxed flex-1 line-clamp-4">
+            {game.description}
+          </p>
+        )}
         
         <div className="flex items-center justify-between mt-3">
-          <span className="text-[11px] font-medium text-gray-800">Nota: {game.rating}</span>
+          {game.tags.length > 0 && (
+            <div className="flex gap-1 flex-wrap">
+              {game.tags.slice(0, 3).map(tag => (
+                <span key={tag} className="text-[10px] bg-[#F3F0FF] text-[#6C3BFF] px-2 py-0.5 rounded-full font-medium">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
           <div className="flex gap-3 text-gray-900">
             <button className="transition hover:text-[#6C3BFF]" aria-label="Curtir jogo"><HeartIcon /></button>
             <button className="transition hover:text-[#6C3BFF]" aria-label="Salvar jogo"><BookmarkIcon /></button>
@@ -125,10 +138,54 @@ function SwipeCard() {
 
 export default function Buscar() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [games, setGames] = useState<Jogo[]>([]);
+  const [loading, setLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const filteredGames = MOCK_GAMES.filter(game => 
-    game.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  useEffect(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    if (searchQuery.trim().length === 0 && !selectedTag) {
+      setGames([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const params: { title?: string; tag?: string; limit: number } = { limit: 20 };
+        if (searchQuery.trim().length > 0) params.title = searchQuery.trim();
+        if (selectedTag) params.tag = selectedTag;
+        const results = await getJogos(params);
+        setGames(results);
+      } catch {
+        setGames([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, [searchQuery, selectedTag]);
+
+  function handleCategoryClick(tag: string) {
+    setSelectedTag(tag);
+    setSearchQuery('');
+  }
+
+  function handleBackToCategories() {
+    setSelectedTag(null);
+    setGames([]);
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-[#EEEEFF]">
@@ -156,21 +213,47 @@ export default function Buscar() {
           {/* Left Column - Dynamic (Categories OR Search Results) */}
           <div className="flex flex-col">
             
-            {searchQuery.length > 0 ? (
+            {searchQuery.length > 0 || selectedTag ? (
               // Modo Busca - Exibir Resultados
               <>
-                <h2 className="mb-6 text-xl font-bold text-[#6C3BFF]">
-                  Resultados da sua busca
-                </h2>
+                <div className="flex items-center gap-3 mb-6">
+                  {selectedTag && (
+                    <button
+                      type="button"
+                      onClick={handleBackToCategories}
+                      className="flex items-center gap-1 text-sm text-[#6C3BFF] hover:text-[#5328d4] transition font-medium"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="15 18 9 12 15 6" />
+                      </svg>
+                      Voltar
+                    </button>
+                  )}
+                  <h2 className="text-xl font-bold text-[#6C3BFF]">
+                    {selectedTag ? `Jogos de ${selectedTag}` : 'Resultados da sua busca'}
+                  </h2>
+                </div>
 
-                {filteredGames.length > 0 ? (
+                {loading ? (
+                  <div className="flex items-center gap-2 text-gray-500">
+                    <svg className="animate-spin h-5 w-5 text-[#6C3BFF]" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    </svg>
+                    <span>Buscando jogos...</span>
+                  </div>
+                ) : games.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {filteredGames.map(game => (
+                    {games.map(game => (
                       <GameResultCard key={game.id} game={game} />
                     ))}
                   </div>
                 ) : (
-                  <p className="text-gray-500">Nenhum jogo encontrado para "{searchQuery}".</p>
+                  <p className="text-gray-500">
+                    {selectedTag
+                      ? `Nenhum jogo encontrado na categoria "${selectedTag}".`
+                      : `Nenhum jogo encontrado para "${searchQuery}".`}
+                  </p>
                 )}
               </>
             ) : (
@@ -183,14 +266,15 @@ export default function Buscar() {
                     const isLight = (row + col) % 2 === 0;
                     const bgColor = isLight ? 'bg-[#5352C7]' : 'bg-[#442882]';
                     return (
-                      <CategoryCard key={`${cat.id}-${index}`} name={cat.name} bgColor={bgColor} />
+                      <CategoryCard
+                        key={`${cat.id}-${index}`}
+                        name={cat.name}
+                        bgColor={bgColor}
+                        onClick={() => handleCategoryClick(cat.tag)}
+                      />
                     );
                   })}
                 </div>
-
-                <button className="mt-12 w-full rounded-full bg-[#F3F0FF] py-4 text-center font-semibold text-[#6C3BFF] transition hover:bg-[#EBE5FF]">
-                  Ver mais categorias
-                </button>
               </>
             )}
 

@@ -49,6 +49,9 @@ export const getJogos = async (req: Request, res: Response): Promise<void> => {
         if (typeof req.query['title'] === 'string') {
             filter.titleContains = req.query['title'];
         }
+        if (typeof req.query['tag'] === 'string') {
+            filter.tag = req.query['tag'];
+        }
         if (
             (filter.limit !== undefined && !Number.isFinite(filter.limit)) ||
             (filter.offset !== undefined && !Number.isFinite(filter.offset))
