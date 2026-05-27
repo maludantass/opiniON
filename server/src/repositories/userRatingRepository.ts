@@ -22,7 +22,7 @@ export class UserRatingRepository {
     async upsert(
         userId: number,
         jogoId: number,
-        values: Partial<Pick<UserRatingAttrs, 'rating' | 'favorited' | 'listed'>>,
+        values: Partial<Pick<UserRatingAttrs, 'rating' | 'favorited' | 'listed' | 'played' | 'category'>>,
     ): Promise<UserRating> {
         const existing = await this.findByUserAndJogo(userId, jogoId);
 
@@ -31,10 +31,10 @@ export class UserRatingRepository {
             return existing;
         }
 
-        return this.create({ userId, jogoId, rating: null, favorited: false, listed: false, ...values });
-    }
-
-    destroyByUserAndJogo(userId: number, jogoId: number): Promise<number> {
-        return UserRating.destroy({ where: { userId, jogoId } });
+        return this.create({
+            userId, jogoId,
+            rating: null, favorited: false, listed: false, played: false, category: null,
+            ...values,
+        });
     }
 }

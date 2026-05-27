@@ -283,7 +283,7 @@ export class CompatibilityService {
     async upsertRating(
         userId: number,
         jogoId: number,
-        values: { rating?: number | null; favorited?: boolean; listed?: boolean },
+        values: { rating?: number | null; favorited?: boolean; listed?: boolean; played?: boolean; category?: string | null },
     ) {
         return this.userRatingRepository.upsert(userId, jogoId, values);
     }
