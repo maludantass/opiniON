@@ -538,9 +538,8 @@ export class CommunityService {
         const community = await this.communityRepo.findById(communityId);
         if (!community) throw new AppError('Comunidade não encontrada', 404);
 
-        const membership = await this.memberRepo.findOne(communityId, userId);
-        if (!membership || membership.status !== 'active') {
-            throw new AppError('Você precisa ser membro para criar desafios', 403);
+        if (community.ownerId !== userId) {
+            throw new AppError('Apenas o criador da comunidade pode criar desafios', 403);
         }
 
         if (!title?.trim()) throw new AppError('Título é obrigatório', 400);
@@ -582,8 +581,20 @@ export class CommunityService {
 
         if (!Number.isInteger(amount) || amount < 1) throw new AppError('Contribuição deve ser um número inteiro positivo', 400);
 
-        await this.challengeRepo.upsertContribution(challengeId, userId, amount);
-        await this.challengeRepo.incrementProgress(challengeId, amount);
+        const existing = await this.challengeRepo.findContribution(challengeId, userId);
+        if (existing) throw new AppError('Você já contribuiu com este desafio', 400);
+
+        // Limita o incremento para não ultrapassar a meta
+        const remaining = Math.max(0, challenge.goal - challenge.currentProgress);
+        const effectiveAmount = Math.min(amount, remaining);
+
+        if (effectiveAmount > 0) {
+            await this.challengeRepo.upsertContribution(challengeId, userId, effectiveAmount);
+            await this.challengeRepo.incrementProgress(challengeId, effectiveAmount);
+        } else {
+            // Meta já atingida, apenas registra a contribuição simbólica
+            await this.challengeRepo.upsertContribution(challengeId, userId, 0);
+        }
 
         const updated = await this.challengeRepo.findById(challengeId);
         return { currentProgress: updated!.currentProgress, goal: updated!.goal };

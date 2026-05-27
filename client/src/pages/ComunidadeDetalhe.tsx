@@ -385,7 +385,12 @@ export default function ComunidadeDetalhe() {
       const result = await contributeToChallenge(token, communityId, ch.id, 1);
       setChallenges(challenges.map((c) =>
         c.id === ch.id
-          ? { ...c, currentProgress: result.currentProgress, userContribution: c.userContribution + 1 }
+          ? {
+              ...c,
+              currentProgress: result.currentProgress,
+              userContribution: 1,
+              contributorsCount: c.userContribution === 0 ? c.contributorsCount + 1 : c.contributorsCount,
+            }
           : c,
       ));
       toast.success("+1 contribuição registrada!");
@@ -714,7 +719,7 @@ export default function ComunidadeDetalhe() {
         {/* ── DESAFIOS ── */}
         {tab === "desafios" && (
           <div className="max-w-2xl mx-auto space-y-4">
-            {canInteract && (
+            {isOwner && (
               <div className="flex justify-end">
                 <button
                   type="button"
@@ -726,7 +731,7 @@ export default function ComunidadeDetalhe() {
               </div>
             )}
 
-            {showChallengeForm && (
+            {isOwner && showChallengeForm && (
               <form onSubmit={handleCreateChallenge} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
                 <h3 className="font-semibold text-gray-800">Criar desafio coletivo</h3>
                 <input
@@ -785,8 +790,10 @@ export default function ComunidadeDetalhe() {
               </div>
             ) : (
               challenges.map((ch) => {
-                const progressPct = Math.min(100, Math.round((ch.currentProgress / ch.goal) * 100));
+                const cappedProgress = Math.min(ch.currentProgress, ch.goal);
+                const progressPct = Math.min(100, Math.round((cappedProgress / ch.goal) * 100));
                 const isActive = new Date() >= new Date(ch.startDate) && new Date() <= new Date(ch.endDate);
+                const alreadyContributed = ch.userContribution > 0;
                 return (
                   <div key={ch.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                     <div className="flex items-start justify-between mb-1">
@@ -804,7 +811,7 @@ export default function ComunidadeDetalhe() {
                     <div className="mb-3">
                       <div className="flex justify-between text-xs text-gray-600 mb-1">
                         <span>Progresso coletivo</span>
-                        <span>{ch.currentProgress} / {ch.goal}</span>
+                        <span>{cappedProgress} / {ch.goal}</span>
                       </div>
                       <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
                         <div
@@ -819,7 +826,7 @@ export default function ComunidadeDetalhe() {
                       <p className="text-xs text-purple-600 mb-2">Sua contribuição: {ch.userContribution}</p>
                     )}
 
-                    {canInteract && isActive && (
+                    {canInteract && isActive && !alreadyContributed && (
                       <button
                         type="button"
                         onClick={() => handleContribute(ch)}
@@ -827,6 +834,9 @@ export default function ComunidadeDetalhe() {
                       >
                         +1 Contribuir
                       </button>
+                    )}
+                    {canInteract && isActive && alreadyContributed && (
+                      <span className="text-xs text-green-600 font-medium">✓ Você já contribuiu</span>
                     )}
                   </div>
                 );
@@ -1029,7 +1039,11 @@ export default function ComunidadeDetalhe() {
             >
               Copiar código
             </button>
-            <button type="button" onClick={() => setShowInviteCode(false)} className="w-full border border-gray-200 py-2 rounded-xl text-sm text-gray-600 hover:bg-gray-50">
+            <button
+              type="button"
+              onClick={() => setShowInviteCode(false)}
+              className="w-full border border-gray-200 py-2 rounded-xl text-sm text-gray-600 hover:bg-gray-50"
+            >
               Fechar
             </button>
           </div>

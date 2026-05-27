@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import { getJogos, type Jogo } from '../services/api';
+import toast from 'react-hot-toast';
+import { getJogos, getMyRatings, upsertRating, type Jogo, type UserRating } from '../services/api';
 
 const CATEGORIES = [
   { id: 1, name: 'Ação', tag: 'Action' },
@@ -35,17 +36,17 @@ function SearchIcon() {
   );
 }
 
-function HeartIcon() {
+function HeartIcon({ filled = false }: { filled?: boolean }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l7.78-7.78a5.5 5.5 0 0 0 1.06-8.84z" />
     </svg>
   );
 }
 
-function BookmarkIcon() {
+function BookmarkIcon({ filled = false }: { filled?: boolean }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
       <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
     </svg>
   );
@@ -66,7 +67,19 @@ function CategoryCard({ name, bgColor, onClick }: { name: string; bgColor: strin
   );
 }
 
-function GameResultCard({ game }: { game: Jogo }) {
+function GameResultCard({
+  game,
+  favorited,
+  listed,
+  onFavorite,
+  onList,
+}: {
+  game: Jogo;
+  favorited: boolean;
+  listed: boolean;
+  onFavorite: () => void;
+  onList: () => void;
+}) {
   return (
     <div className="flex bg-white rounded-2xl p-4 shadow-sm border border-gray-100 gap-4 transition hover:shadow-md">
       {game.imageUrl ? (
@@ -80,7 +93,7 @@ function GameResultCard({ game }: { game: Jogo }) {
           <span className="text-white text-xs font-medium text-center px-1">{game.title}</span>
         </div>
       )}
-      
+
       <div className="flex flex-col flex-1 py-1 overflow-hidden">
         <h3 className="font-bold text-gray-900 text-sm mb-1">{game.title}</h3>
         {game.description && (
@@ -88,7 +101,7 @@ function GameResultCard({ game }: { game: Jogo }) {
             {game.description}
           </p>
         )}
-        
+
         <div className="flex items-center justify-between mt-3">
           {game.tags.length > 0 && (
             <div className="flex gap-1 flex-wrap">
@@ -99,9 +112,23 @@ function GameResultCard({ game }: { game: Jogo }) {
               ))}
             </div>
           )}
-          <div className="flex gap-3 text-gray-900">
-            <button className="transition hover:text-[#6C3BFF]" aria-label="Curtir jogo"><HeartIcon /></button>
-            <button className="transition hover:text-[#6C3BFF]" aria-label="Salvar jogo"><BookmarkIcon /></button>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onFavorite}
+              aria-label={favorited ? "Descurtir jogo" : "Curtir jogo"}
+              className={`transition ${favorited ? "text-[#6C3BFF]" : "text-gray-400 hover:text-[#6C3BFF]"}`}
+            >
+              <HeartIcon filled={favorited} />
+            </button>
+            <button
+              type="button"
+              onClick={onList}
+              aria-label={listed ? "Remover da lista" : "Salvar jogo"}
+              className={`transition ${listed ? "text-[#6C3BFF]" : "text-gray-400 hover:text-[#6C3BFF]"}`}
+            >
+              <BookmarkIcon filled={listed} />
+            </button>
           </div>
         </div>
       </div>
@@ -141,7 +168,61 @@ export default function Buscar() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [games, setGames] = useState<Jogo[]>([]);
   const [loading, setLoading] = useState(false);
+  const [ratingsMap, setRatingsMap] = useState<Map<number, UserRating>>(new Map());
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const token = localStorage.getItem('token');
+
+  // Carrega ratings do usuário uma vez ao montar
+  useEffect(() => {
+    if (!token) return;
+    getMyRatings(token)
+      .then((ratings) => {
+        const map = new Map<number, UserRating>();
+        ratings.forEach((r) => map.set(r.jogoId, r));
+        setRatingsMap(map);
+      })
+      .catch(() => {});
+  }, [token]);
+
+  const handleToggleFavorite = async (game: Jogo) => {
+    if (!token) return;
+    const current = ratingsMap.get(game.id);
+    const newFav = !(current?.favorited ?? false);
+    // Atualização otimista
+    setRatingsMap((prev) => {
+      const next = new Map(prev);
+      next.set(game.id, { ...(current ?? { id: 0, userId: 0, jogoId: game.id, rating: null, favorited: false, listed: false }), favorited: newFav });
+      return next;
+    });
+    try {
+      const updated = await upsertRating(token, game.id, { favorited: newFav });
+      setRatingsMap((prev) => { const next = new Map(prev); next.set(game.id, updated); return next; });
+      toast.success(newFav ? 'Jogo curtido!' : 'Curtida removida');
+    } catch {
+      // Reverte em caso de erro
+      setRatingsMap((prev) => { const next = new Map(prev); if (current) next.set(game.id, current); else next.delete(game.id); return next; });
+      toast.error('Erro ao curtir jogo');
+    }
+  };
+
+  const handleToggleListed = async (game: Jogo) => {
+    if (!token) return;
+    const current = ratingsMap.get(game.id);
+    const newListed = !(current?.listed ?? false);
+    setRatingsMap((prev) => {
+      const next = new Map(prev);
+      next.set(game.id, { ...(current ?? { id: 0, userId: 0, jogoId: game.id, rating: null, favorited: false, listed: false }), listed: newListed });
+      return next;
+    });
+    try {
+      const updated = await upsertRating(token, game.id, { listed: newListed });
+      setRatingsMap((prev) => { const next = new Map(prev); next.set(game.id, updated); return next; });
+      toast.success(newListed ? 'Jogo salvo na lista!' : 'Removido da lista');
+    } catch {
+      setRatingsMap((prev) => { const next = new Map(prev); if (current) next.set(game.id, current); else next.delete(game.id); return next; });
+      toast.error('Erro ao salvar jogo');
+    }
+  };
 
   useEffect(() => {
     if (debounceRef.current) {
@@ -245,7 +326,14 @@ export default function Buscar() {
                 ) : games.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {games.map(game => (
-                      <GameResultCard key={game.id} game={game} />
+                      <GameResultCard
+                        key={game.id}
+                        game={game}
+                        favorited={ratingsMap.get(game.id)?.favorited ?? false}
+                        listed={ratingsMap.get(game.id)?.listed ?? false}
+                        onFavorite={() => handleToggleFavorite(game)}
+                        onList={() => handleToggleListed(game)}
+                      />
                     ))}
                   </div>
                 ) : (

@@ -178,6 +178,21 @@ export async function getMyRatings(token: string): Promise<UserRating[]> {
   return result.data;
 }
 
+export async function upsertRating(
+  token: string,
+  jogoId: number,
+  values: { rating?: number | null; favorited?: boolean; listed?: boolean },
+): Promise<UserRating> {
+  const response = await fetch(`${API_URL}/compatibility/ratings`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ jogoId, ...values }),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || "Erro ao avaliar jogo");
+  return result.data;
+}
+
 export interface FeedPost {
   id: number;
   content: string;
