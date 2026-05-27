@@ -8,7 +8,10 @@ export default function Navbar() {
   const location = useLocation();
 
   function navClass(path: string) {
-    const active = location.pathname === path;
+    const active =
+      path === "/"
+        ? location.pathname === path
+        : location.pathname === path || location.pathname.startsWith(path + "/");
     return active
       ? "bg-purple-700 text-white px-5 py-2 rounded-full text-sm font-medium"
       : "text-gray-700 text-sm hover:text-purple-700 transition-colors";
@@ -48,6 +51,7 @@ export default function Navbar() {
         <Link to="/comunidade" className={navClass("/comunidade")}>Comunidade</Link>
         <Link to="/dashboard" className={navClass("/dashboard")}>Dashboard</Link>
         <Link to="/buscar" className={navClass("/buscar")}>Buscar</Link>
+        <Link to="/comunidades" className={navClass("/comunidades")}>Grupos</Link>
         <Link to="/publicacao" className={navClass("/publicacao")}>Publicação</Link>
       </div>
 

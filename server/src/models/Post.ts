@@ -5,6 +5,7 @@ export interface PostAttrs {
     id: number;
     userId: number;
     jogoId: number | null;
+    communityId: number | null;
     content: string;
     mediaUrl: string | null;
     mediaType: 'image' | 'video' | null;
@@ -16,6 +17,7 @@ export class Post extends Model<PostAttrs> implements PostAttrs {
     declare id: number;
     declare userId: number;
     declare jogoId: number | null;
+    declare communityId: number | null;
     declare content: string;
     declare mediaUrl: string | null;
     declare mediaType: 'image' | 'video' | null;
@@ -38,6 +40,12 @@ export function initPostModel(sequelize: Sequelize): void {
             jogoId: {
                 type: DataTypes.INTEGER,
                 allowNull: true,
+            },
+            communityId: {
+                type: DataTypes.INTEGER,
+                allowNull: true,
+                references: { model: 'communities', key: 'id' },
+                onDelete: 'CASCADE',
             },
             content: {
                 type: DataTypes.TEXT,
