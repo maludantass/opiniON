@@ -9,6 +9,7 @@
     "start": "node dist/index.js",
     "seed:games": "tsx src/scripts/seedGames.ts",
     "seed:reviews": "tsx src/scripts/seedReviews.ts",
+    "seed:dev": "tsx src/scripts/seedDev.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

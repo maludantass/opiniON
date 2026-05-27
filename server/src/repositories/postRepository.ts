@@ -16,7 +16,7 @@ export class PostRepository {
     }
 
     create(
-        attrs: Pick<PostAttrs, 'userId' | 'content' | 'mediaUrl' | 'mediaType'>,
+        attrs: Pick<PostAttrs, 'userId' | 'content' | 'mediaUrl' | 'mediaType'> & { jogoId?: number | null; communityId?: number | null },
         options?: { transaction?: Transaction },
     ): Promise<Post> {
         return Post.create(attrs as CreationAttributes<Post>, options);
