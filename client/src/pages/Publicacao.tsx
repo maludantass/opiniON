@@ -163,6 +163,7 @@ function FormPublicacao({ jogo, onBack }: { jogo: Jogo; onBack: () => void }) {
         body: JSON.stringify({
           content: opiniao.trim(),
           jogoId: jogo.id,
+          category: category || null,
         }),
       });
 

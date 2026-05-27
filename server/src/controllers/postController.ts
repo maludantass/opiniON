@@ -13,10 +13,7 @@ function handleError(res: Response, e: unknown): Response {
     return sendError(res, 'Erro interno no servidor', 500);
 }
 
-export const createPost = async (
-    req: Request,
-    res: Response,
-): Promise<void> => {
+export const createPost = async (req: Request, res: Response): Promise<void> => {
     try {
         const authId = req.authUserId;
         if (authId === undefined) {
@@ -27,6 +24,8 @@ export const createPost = async (
             content: req.body?.content,
             mediaUrl: req.body?.mediaUrl,
             mediaType: req.body?.mediaType,
+            jogoId: req.body?.jogoId,
+            category: req.body?.category,
         });
         sendSuccess(res, data, 201);
     } catch (e) {
@@ -47,15 +46,10 @@ export const getFeedPosts = async (req: Request, res: Response): Promise<void> =
 export const getPosts = async (req: Request, res: Response): Promise<void> => {
     try {
         const filter: PostListFilter = {};
-        if (req.query['limit'] !== undefined) {
-            filter.limit = Number(req.query['limit']);
-        }
-        if (req.query['offset'] !== undefined) {
-            filter.offset = Number(req.query['offset']);
-        }
-        if (typeof req.query['content'] === 'string') {
-            filter.contentContains = req.query['content'];
-        }
+        if (req.query['limit'] !== undefined) filter.limit = Number(req.query['limit']);
+        if (req.query['offset'] !== undefined) filter.offset = Number(req.query['offset']);
+        if (typeof req.query['content'] === 'string') filter.contentContains = req.query['content'];
+        
         if (
             (filter.limit !== undefined && !Number.isFinite(filter.limit)) ||
             (filter.offset !== undefined && !Number.isFinite(filter.offset))
@@ -70,10 +64,7 @@ export const getPosts = async (req: Request, res: Response): Promise<void> => {
     }
 };
 
-export const getPostById = async (
-    req: Request,
-    res: Response,
-): Promise<void> => {
+export const getPostById = async (req: Request, res: Response): Promise<void> => {
     try {
         const id = Number(req.params['id']);
         if (!Number.isFinite(id)) {
@@ -87,10 +78,7 @@ export const getPostById = async (
     }
 };
 
-export const updatePost = async (
-    req: Request,
-    res: Response,
-): Promise<void> => {
+export const updatePost = async (req: Request, res: Response): Promise<void> => {
     try {
         const id = Number(req.params['id']);
         if (!Number.isFinite(id)) {
@@ -106,6 +94,7 @@ export const updatePost = async (
             content: req.body?.content,
             mediaUrl: req.body?.mediaUrl,
             mediaType: req.body?.mediaType,
+            category: req.body?.category,
         });
         sendSuccess(res, data);
     } catch (e) {
@@ -113,10 +102,7 @@ export const updatePost = async (
     }
 };
 
-export const deletePost = async (
-    req: Request,
-    res: Response,
-): Promise<void> => {
+export const deletePost = async (req: Request, res: Response): Promise<void> => {
     try {
         const id = Number(req.params['id']);
         if (!Number.isFinite(id)) {

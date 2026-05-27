@@ -16,7 +16,7 @@ export class PostRepository {
     }
 
     create(
-        attrs: Pick<PostAttrs, 'userId' | 'content' | 'mediaUrl' | 'mediaType'> & { jogoId?: number | null; communityId?: number | null },
+        attrs: Pick<PostAttrs, 'userId' | 'content' | 'mediaUrl' | 'mediaType' | 'category'> & { jogoId?: number | null; communityId?: number | null },
         options?: { transaction?: Transaction },
     ): Promise<Post> {
         return Post.create(attrs as CreationAttributes<Post>, options);
@@ -24,7 +24,7 @@ export class PostRepository {
 
     async updateById(
         id: number,
-        values: Partial<Pick<PostAttrs, 'content' | 'mediaUrl' | 'mediaType'>>,
+        values: Partial<Pick<PostAttrs, 'content' | 'mediaUrl' | 'mediaType' | 'category'>>,
     ): Promise<number> {
         const [affected] = await Post.update(values, { where: { id } });
         return affected;

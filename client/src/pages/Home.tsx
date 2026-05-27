@@ -20,7 +20,6 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-
 function HeartIcon({ filled = false }: { filled?: boolean }) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
@@ -114,7 +113,7 @@ function GameCard({
   );
 }
 
-function ReviewCard({
+export function ReviewCard({
   post,
   favorited = false,
   listed = false,
@@ -150,8 +149,8 @@ function ReviewCard({
           <div>
             <p className="text-sm font-semibold text-gray-900">{post.jogo.title}</p>
             <div className="mt-2 flex flex-wrap gap-1">
-              {post.jogo.tags.slice(0, 3).map((tag, i) => (
-                <span key={i} className="rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[10px] text-gray-600">
+              {post.jogo.tags && post.jogo.tags.slice(0, 3).map((tag, i) => (
+                <span key={i} className="rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-medium text-purple-700">
                   {tag}
                 </span>
               ))}
@@ -272,10 +271,8 @@ export default function Home() {
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [gamers, setGamers] = useState<PublicUser[]>([]);
   const [ratingsMap, setRatingsMap] = useState<Map<number, UserRating>>(new Map());
-  // followingIds: set de IDs que o usuário já segue
   const [followingIds, setFollowingIds] = useState<Set<number>>(new Set());
 
-  // Efeito separado para dados públicos — nunca re-executa, jogos não re-embaralham
   useEffect(() => {
     const currentUser = (() => { try { return JSON.parse(localStorage.getItem('user') ?? 'null'); } catch { return null; } })();
     const currentUserId: number | null = currentUser?.id ?? null;
@@ -284,13 +281,12 @@ export default function Home() {
       .then((all) => setJogos(shuffle(all).slice(0, 12)))
       .catch(() => {});
     getFeedPosts(6).then(setPosts).catch(() => {});
-    // Filtra o próprio usuário da lista para não mostrar "Seguir" em si mesmo
+    
     getPublicUsers(20)
       .then((all) => setGamers(currentUserId ? all.filter((u) => u.id !== currentUserId).slice(0, 10) : all.slice(0, 10)))
       .catch(() => {});
   }, []);
 
-  // Efeito separado para dados do usuário autenticado
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) return;
@@ -332,7 +328,6 @@ export default function Home() {
     const token = localStorage.getItem('token');
     if (!token) return;
     const isFollowing = followingIds.has(userId);
-    // Atualização otimista
     setFollowingIds((prev) => {
       const next = new Set(prev);
       if (isFollowing) next.delete(userId); else next.add(userId);
@@ -347,7 +342,6 @@ export default function Home() {
         toast.success('Seguindo!');
       }
     } catch {
-      // Reverte em caso de erro
       setFollowingIds((prev) => {
         const next = new Set(prev);
         if (isFollowing) next.add(userId); else next.delete(userId);
@@ -447,7 +441,7 @@ export default function Home() {
                     ))
                   : Array.from({ length: 7 }).map((_, i) => (
                       <div key={i} className="flex w-32 flex-shrink-0 flex-col items-center rounded-2xl border border-gray-200 bg-white p-4 shadow-sm animate-pulse">
-                        <div className="h-13 w-13 rounded-full bg-gray-100" style={{ width: 52, height: 52 }} />
+                        <div className="rounded-full bg-gray-100" style={{ width: 52, height: 52 }} />
                         <div className="mt-3 h-3 w-16 rounded bg-gray-100" />
                         <div className="mt-2 h-3 w-10 rounded bg-gray-100" />
                       </div>
