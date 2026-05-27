@@ -35,4 +35,8 @@ export class CommunityMemberRepository {
     findPendingRequests(communityId: number): Promise<CommunityMember[]> {
         return CommunityMember.findAll({ where: { communityId, status: 'pending' } });
     }
+
+    countByUserId(userId: number, status: MemberStatus = 'active'): Promise<number> {
+        return CommunityMember.count({ where: { userId, status } });
+    }
 }

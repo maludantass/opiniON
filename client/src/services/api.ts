@@ -119,6 +119,14 @@ export interface UserRating {
   createdAt?: string;
 }
 
+export interface GostoGame {
+  jogoId: number;
+  title: string;
+  imageUrl: string | null;
+  notaMedia: number;
+  suaNota: number;
+}
+
 export interface DashboardStats {
   topFavoritedGame: {
     jogoId: number;
@@ -138,6 +146,18 @@ export interface DashboardStats {
     imageUrl: string | null;
     createdAt: string;
   } | null;
+  perfilResumo: {
+    username: string | null;
+    avatarUrl: string | null;
+    reviewsCount: number;
+    conexoesCount: number;
+    comunidadesCount: number;
+  };
+  curtidas: { total: number; esteMes: number };
+  mediaNotas: number | null;
+  jogosAvaliadosEsteMes: number;
+  gustoPopular: GostoGame | null;
+  gustoRaro: GostoGame | null;
 }
 
 export async function getCompatibilityDistribution(token: string): Promise<CompatibilityAnalytics> {
