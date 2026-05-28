@@ -1,21 +1,25 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { loginUser } from "../services/api";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login, isAuthenticated } = useAuth();
+
+  if (isAuthenticated) return <Navigate to="/" replace />;
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
+    setLoading(true);
     try {
       const data = await loginUser({ email, password });
 
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      login(data.token, data.user);
 
       toast.success("Login realizado com sucesso!");
       navigate("/");
@@ -25,6 +29,8 @@ export default function Login() {
       } else {
         toast.error("Ocorreu um erro no login.");
       }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -65,8 +71,8 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
               />
 
-              <button type="submit" style={styles.button}>
-                Fazer login
+              <button type="submit" disabled={loading} style={styles.button}>
+                {loading ? "Entrando..." : "Fazer login"}
               </button>
             </form>
 

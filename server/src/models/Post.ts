@@ -70,6 +70,12 @@ export function initPostModel(sequelize: Sequelize): void {
             sequelize,
             tableName: 'posts',
             timestamps: true,
+            indexes: [
+                { fields: ['userId'] },
+                { fields: ['communityId'] },
+                { fields: ['jogoId'] },
+                { fields: ['createdAt'] },
+            ],
         },
     );
 }

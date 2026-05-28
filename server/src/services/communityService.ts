@@ -84,7 +84,27 @@ export class CommunityService {
 
     async listCommunities(userId?: number, search?: string, limit = 20, offset = 0) {
         const { rows, count } = await this.communityRepo.findPublic(search, limit, offset);
-        const items = await Promise.all(rows.map((c) => this.toCommunityPublic(c, userId)));
+        const ids = rows.map((c) => c.id);
+
+        const memberCounts = await this.memberRepo.countBatch(ids);
+        const userMemberships = userId && ids.length > 0
+            ? await this.memberRepo.findBatch(ids, userId)
+            : new Map<number, { status: string }>();
+
+        const items = rows.map((c) => ({
+            id: c.id,
+            name: c.name,
+            description: c.description,
+            imageUrl: c.imageUrl,
+            type: c.type,
+            ownerId: c.ownerId,
+            tags: c.tags,
+            games: c.games,
+            memberCount: memberCounts.get(c.id) ?? 0,
+            memberStatus: userMemberships.get(c.id)?.status ?? null,
+            createdAt: c.createdAt,
+        }));
+
         return { items, total: count };
     }
 
@@ -212,22 +232,29 @@ export class CommunityService {
 
         await this.assertAccessible(community, requesterId);
 
+        interface MemberWithUser {
+            userId: number;
+            status: string;
+            createdAt: Date;
+            user: User | null;
+        }
+
         const members = await this.memberRepo.findAll({
             where: { communityId, status: 'active' },
             include: [{ model: User, as: 'user', attributes: ['id', 'username', 'avatarUrl', 'email'] }],
-        });
+        }) as unknown as MemberWithUser[];
 
         return members.map((m) => ({
             userId: m.userId,
             status: m.status,
             joinedAt: m.createdAt,
             isOwner: m.userId === community.ownerId,
-            user: (m as unknown as { user: User }).user
+            user: m.user
                 ? {
-                      id: (m as unknown as { user: User }).user.id,
-                      username: (m as unknown as { user: User }).user.username,
-                      avatarUrl: (m as unknown as { user: User }).user.avatarUrl,
-                      email: (m as unknown as { user: User }).user.email,
+                      id: m.user.id,
+                      username: m.user.username,
+                      avatarUrl: m.user.avatarUrl,
+                      email: m.user.email,
                   }
                 : null,
         }));
@@ -399,6 +426,7 @@ export class CommunityService {
             userId,
             communityId,
             jogoId: null,
+            category: null,
             content: content.trim(),
             mediaUrl: mediaUrl ?? null,
             mediaType: mediaType ?? null,
@@ -427,26 +455,25 @@ export class CommunityService {
         await this.assertAccessible(community, requesterId);
 
         const events = await this.eventRepo.findByCommunity(communityId);
+        if (events.length === 0) return [];
 
-        return Promise.all(
-            events.map(async (evt) => {
-                const rsvpCount = await this.eventRepo.countRsvps(evt.id);
-                const userRsvp = requesterId
-                    ? (await this.eventRepo.findRsvp(evt.id, requesterId)) !== null
-                    : false;
-                return {
-                    id: evt.id,
-                    communityId: evt.communityId,
-                    creatorId: evt.creatorId,
-                    title: evt.title,
-                    description: evt.description,
-                    eventDate: evt.eventDate,
-                    rsvpCount,
-                    userRsvp,
-                    createdAt: evt.createdAt,
-                };
-            }),
-        );
+        const eventIds = events.map((e) => e.id);
+        const rsvpCounts = await this.eventRepo.findRsvpsBatch(eventIds);
+        const userRsvps = requesterId
+            ? await this.eventRepo.findUserRsvpsBatch(eventIds, requesterId)
+            : new Set<number>();
+
+        return events.map((evt) => ({
+            id: evt.id,
+            communityId: evt.communityId,
+            creatorId: evt.creatorId,
+            title: evt.title,
+            description: evt.description,
+            eventDate: evt.eventDate,
+            rsvpCount: rsvpCounts.get(evt.id) ?? 0,
+            userRsvp: userRsvps.has(evt.id),
+            createdAt: evt.createdAt,
+        }));
     }
 
     async createEvent(communityId: number, userId: number, title: string, description: string | null, eventDate: string) {
@@ -509,29 +536,31 @@ export class CommunityService {
         await this.assertAccessible(community, requesterId);
 
         const challenges = await this.challengeRepo.findByCommunity(communityId);
+        if (challenges.length === 0) return [];
 
-        return Promise.all(
-            challenges.map(async (ch) => {
-                const contributions = await this.challengeRepo.findContributions(ch.id);
-                const userContribution = requesterId
-                    ? contributions.find((c) => c.userId === requesterId)?.contribution ?? 0
-                    : 0;
-                return {
-                    id: ch.id,
-                    communityId: ch.communityId,
-                    creatorId: ch.creatorId,
-                    title: ch.title,
-                    description: ch.description,
-                    goal: ch.goal,
-                    currentProgress: ch.currentProgress,
-                    startDate: ch.startDate,
-                    endDate: ch.endDate,
-                    userContribution,
-                    contributorsCount: contributions.length,
-                    createdAt: ch.createdAt,
-                };
-            }),
-        );
+        const challengeIds = challenges.map((c) => c.id);
+        const allContributions = await this.challengeRepo.findContributionsBatch(challengeIds);
+
+        return challenges.map((ch) => {
+            const contributions = allContributions.get(ch.id) ?? [];
+            const userContribution = requesterId
+                ? contributions.find((c) => c.userId === requesterId)?.contribution ?? 0
+                : 0;
+            return {
+                id: ch.id,
+                communityId: ch.communityId,
+                creatorId: ch.creatorId,
+                title: ch.title,
+                description: ch.description,
+                goal: ch.goal,
+                currentProgress: ch.currentProgress,
+                startDate: ch.startDate,
+                endDate: ch.endDate,
+                userContribution,
+                contributorsCount: contributions.length,
+                createdAt: ch.createdAt,
+            };
+        });
     }
 
     async createChallenge(communityId: number, userId: number, title: string, description: string | null, goal: number, startDate: string, endDate: string) {

@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import Navbar from "../components/Navbar";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+import { createPost, getJogos, upsertRating } from "../services/api";
+import { useAuth } from "../contexts/AuthContext";
 
 const CATEGORIAS = [
   "Ação", "Aventura", "RPG", "Estratégia", "Esportes",
@@ -61,11 +61,8 @@ function BuscaJogo({ onSelect }: { onSelect: (j: Jogo) => void }) {
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await fetch(
-          `${API_URL}/jogos?title=${encodeURIComponent(search.trim())}&limit=20`
-        );
-        const json = await res.json();
-        setResults(json.data ?? []);
+        const data = await getJogos({ title: search.trim(), limit: 20 });
+        setResults(data);
       } catch {
         setResults([]);
       } finally {
@@ -133,6 +130,7 @@ function BuscaJogo({ onSelect }: { onSelect: (j: Jogo) => void }) {
 
 function FormPublicacao({ jogo, onBack }: { jogo: Jogo; onBack: () => void }) {
   const navigate = useNavigate();
+  const { token } = useAuth();
   const [jaJoguei, setJaJoguei] = useState(false);
   const [opiniao, setOpiniao] = useState("");
   const [category, setCategory] = useState("");
@@ -145,7 +143,6 @@ function FormPublicacao({ jogo, onBack }: { jogo: Jogo; onBack: () => void }) {
       return;
     }
 
-    const token = localStorage.getItem("token");
     if (!token) {
       toast.error("Você precisa estar logado.");
       navigate("/login");
@@ -154,50 +151,22 @@ function FormPublicacao({ jogo, onBack }: { jogo: Jogo; onBack: () => void }) {
 
     setSubmitting(true);
     try {
-      const postRes = await fetch(`${API_URL}/posts`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          content: opiniao.trim(),
-          jogoId: jogo.id,
-          category: category || null,
-        }),
+      await createPost(token, {
+        content: opiniao.trim(),
+        jogoId: jogo.id,
+        category: category || null,
       });
 
-      if (postRes.status === 401) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        toast.error("Sessão expirada. Faça login novamente.");
-        navigate("/login");
-        return;
-      }
-
-      const postJson = await postRes.json();
-      if (!postRes.ok) throw new Error(postJson.message || "Erro ao criar post");
-
       if (jaJoguei || rating > 0 || category) {
-        await fetch(`${API_URL}/compatibility/ratings`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            jogoId: jogo.id,
-            ...(rating > 0 && { rating }),
-            played: jaJoguei,
-            favorited: false,
-            listed: false,
-            category: category || null,
-          }),
+        await upsertRating(token, jogo.id, {
+          rating: rating > 0 ? rating : null,
+          played: jaJoguei,
+          category: category || null,
         });
       }
 
       toast.success("Publicado com sucesso!");
-      navigate("/");
+      navigate("/", { state: { publishedGameTitle: jogo.title } });
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Erro ao publicar.");
     } finally {

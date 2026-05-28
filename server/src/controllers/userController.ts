@@ -1,17 +1,9 @@
 import type { Request, Response } from 'express';
-import { AppError } from '../errors/AppError.js';
-import { sendError, sendSuccess } from '../utils/httpResponse.js';
+import { sendError, sendSuccess, handleError } from '../utils/httpResponse.js';
+import { parseRouteId, requireAuthUserId } from '../utils/request.js';
 import { UserService, type UserListFilter } from '../services/userService.js';
 
 const userService = new UserService();
-
-function handleError(res: Response, e: unknown): Response {
-    if (e instanceof AppError) {
-        return sendError(res, e.message, e.statusCode, e.details);
-    }
-    console.error(e);
-    return sendError(res, 'Erro interno no servidor', 500);
-}
 
 export const register = async (
     req: Request,
@@ -82,16 +74,8 @@ export const updateUser = async (
     res: Response,
 ): Promise<void> => {
     try {
-        const id = Number(req.params['id']);
-        if (!Number.isFinite(id)) {
-            sendError(res, 'Id inválido', 400);
-            return;
-        }
-        const authId = req.authUserId;
-        if (authId === undefined) {
-            sendError(res, 'Não autenticado', 401);
-            return;
-        }
+        const id = parseRouteId(req.params['id']);
+        const authId = requireAuthUserId(req.authUserId);
         const data = await userService.updateUser(
             id,
             {
@@ -99,6 +83,7 @@ export const updateUser = async (
                 password: req.body?.password,
                 username: req.body?.username,
                 avatarUrl: req.body?.avatarUrl,
+                bio: req.body?.bio,
             },
             authId,
         );
@@ -113,16 +98,8 @@ export const deleteUser = async (
     res: Response,
 ): Promise<void> => {
     try {
-        const id = Number(req.params['id']);
-        if (!Number.isFinite(id)) {
-            sendError(res, 'Id inválido', 400);
-            return;
-        }
-        const authId = req.authUserId;
-        if (authId === undefined) {
-            sendError(res, 'Não autenticado', 401);
-            return;
-        }
+        const id = parseRouteId(req.params['id']);
+        const authId = requireAuthUserId(req.authUserId);
         await userService.deleteUser(id, authId);
         sendSuccess(res, { deleted: true });
     } catch (e) {

@@ -1,15 +1,9 @@
 import type { Request, Response } from 'express';
-import { AppError } from '../errors/AppError.js';
-import { sendError, sendSuccess } from '../utils/httpResponse.js';
+import { sendError, sendSuccess, handleError } from '../utils/httpResponse.js';
+import { parseRouteId } from '../utils/request.js';
 import { CommunityService } from '../services/communityService.js';
 
 const svc = new CommunityService();
-
-function handleError(res: Response, e: unknown): Response {
-    if (e instanceof AppError) return sendError(res, e.message, e.statusCode, e.details);
-    console.error(e);
-    return sendError(res, 'Erro interno no servidor', 500);
-}
 
 export const listCommunities = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -39,8 +33,7 @@ export const getMyInvites = async (req: Request, res: Response): Promise<void> =
 
 export const getCommunityById = async (req: Request, res: Response): Promise<void> => {
     try {
-        const id = Number(req.params['id']);
-        if (!Number.isFinite(id)) { sendError(res, 'Id inválido', 400); return; }
+        const id = parseRouteId(req.params['id']);
         const data = await svc.getCommunityById(id, req.authUserId);
         sendSuccess(res, data);
     } catch (e) { handleError(res, e); }
@@ -63,8 +56,7 @@ export const createCommunity = async (req: Request, res: Response): Promise<void
 
 export const updateCommunity = async (req: Request, res: Response): Promise<void> => {
     try {
-        const id = Number(req.params['id']);
-        if (!Number.isFinite(id)) { sendError(res, 'Id inválido', 400); return; }
+        const id = parseRouteId(req.params['id']);
         if (!req.authUserId) { sendError(res, 'Não autenticado', 401); return; }
         const data = await svc.updateCommunity(id, req.authUserId, {
             name: req.body?.name,
@@ -79,8 +71,7 @@ export const updateCommunity = async (req: Request, res: Response): Promise<void
 
 export const deleteCommunity = async (req: Request, res: Response): Promise<void> => {
     try {
-        const id = Number(req.params['id']);
-        if (!Number.isFinite(id)) { sendError(res, 'Id inválido', 400); return; }
+        const id = parseRouteId(req.params['id']);
         if (!req.authUserId) { sendError(res, 'Não autenticado', 401); return; }
         await svc.deleteCommunity(id, req.authUserId);
         sendSuccess(res, { deleted: true });
@@ -89,8 +80,7 @@ export const deleteCommunity = async (req: Request, res: Response): Promise<void
 
 export const joinCommunity = async (req: Request, res: Response): Promise<void> => {
     try {
-        const id = Number(req.params['id']);
-        if (!Number.isFinite(id)) { sendError(res, 'Id inválido', 400); return; }
+        const id = parseRouteId(req.params['id']);
         if (!req.authUserId) { sendError(res, 'Não autenticado', 401); return; }
         const data = await svc.joinCommunity(id, req.authUserId);
         sendSuccess(res, data, 201);
@@ -109,8 +99,7 @@ export const joinByCode = async (req: Request, res: Response): Promise<void> => 
 
 export const leaveCommunity = async (req: Request, res: Response): Promise<void> => {
     try {
-        const id = Number(req.params['id']);
-        if (!Number.isFinite(id)) { sendError(res, 'Id inválido', 400); return; }
+        const id = parseRouteId(req.params['id']);
         if (!req.authUserId) { sendError(res, 'Não autenticado', 401); return; }
         await svc.leaveCommunity(id, req.authUserId);
         sendSuccess(res, { left: true });
@@ -119,8 +108,7 @@ export const leaveCommunity = async (req: Request, res: Response): Promise<void>
 
 export const getMembers = async (req: Request, res: Response): Promise<void> => {
     try {
-        const id = Number(req.params['id']);
-        if (!Number.isFinite(id)) { sendError(res, 'Id inválido', 400); return; }
+        const id = parseRouteId(req.params['id']);
         const data = await svc.getMembers(id, req.authUserId);
         sendSuccess(res, data);
     } catch (e) { handleError(res, e); }
@@ -128,8 +116,7 @@ export const getMembers = async (req: Request, res: Response): Promise<void> => 
 
 export const getPendingRequests = async (req: Request, res: Response): Promise<void> => {
     try {
-        const id = Number(req.params['id']);
-        if (!Number.isFinite(id)) { sendError(res, 'Id inválido', 400); return; }
+        const id = parseRouteId(req.params['id']);
         if (!req.authUserId) { sendError(res, 'Não autenticado', 401); return; }
         const data = await svc.getPendingRequests(id, req.authUserId);
         sendSuccess(res, data);
@@ -189,8 +176,7 @@ export const respondInvite = async (req: Request, res: Response): Promise<void> 
 
 export const getCommunityPosts = async (req: Request, res: Response): Promise<void> => {
     try {
-        const id = Number(req.params['id']);
-        if (!Number.isFinite(id)) { sendError(res, 'Id inválido', 400); return; }
+        const id = parseRouteId(req.params['id']);
         const limit = Math.min(Number(req.query['limit'] ?? 20), 50);
         const offset = Number(req.query['offset'] ?? 0);
         const data = await svc.getCommunityPosts(id, req.authUserId, limit, offset);
@@ -200,8 +186,7 @@ export const getCommunityPosts = async (req: Request, res: Response): Promise<vo
 
 export const createCommunityPost = async (req: Request, res: Response): Promise<void> => {
     try {
-        const id = Number(req.params['id']);
-        if (!Number.isFinite(id)) { sendError(res, 'Id inválido', 400); return; }
+        const id = parseRouteId(req.params['id']);
         if (!req.authUserId) { sendError(res, 'Não autenticado', 401); return; }
         const data = await svc.createCommunityPost(id, req.authUserId, req.body?.content, req.body?.mediaUrl, req.body?.mediaType);
         sendSuccess(res, data, 201);
@@ -220,8 +205,7 @@ export const deleteCommunityPost = async (req: Request, res: Response): Promise<
 
 export const getCommunityEvents = async (req: Request, res: Response): Promise<void> => {
     try {
-        const id = Number(req.params['id']);
-        if (!Number.isFinite(id)) { sendError(res, 'Id inválido', 400); return; }
+        const id = parseRouteId(req.params['id']);
         const data = await svc.getCommunityEvents(id, req.authUserId);
         sendSuccess(res, data);
     } catch (e) { handleError(res, e); }
@@ -258,8 +242,7 @@ export const unrsvpEvent = async (req: Request, res: Response): Promise<void> =>
 
 export const getCommunityChallenge = async (req: Request, res: Response): Promise<void> => {
     try {
-        const id = Number(req.params['id']);
-        if (!Number.isFinite(id)) { sendError(res, 'Id inválido', 400); return; }
+        const id = parseRouteId(req.params['id']);
         const data = await svc.getCommunityChallenge(id, req.authUserId);
         sendSuccess(res, data);
     } catch (e) { handleError(res, e); }

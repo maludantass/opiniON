@@ -26,6 +26,7 @@ export interface UserCompatibility {
   email: string;
   username: string | null;
   avatarUrl: string | null;
+  bio?: string | null;
   score: number;
   label: "Alto" | "Médio" | "Baixo";
   sharedRatings: number;
@@ -116,7 +117,10 @@ export interface UserRating {
   rating: number | null;
   favorited: boolean;
   listed: boolean;
+  played: boolean;
+  category: string | null;
   createdAt?: string;
+  jogo?: Jogo;
 }
 
 export interface GostoGame {
@@ -181,7 +185,13 @@ export async function getMyRatings(token: string): Promise<UserRating[]> {
 export async function upsertRating(
   token: string,
   jogoId: number,
-  values: { rating?: number | null; favorited?: boolean; listed?: boolean },
+  values: {
+    rating?: number | null;
+    favorited?: boolean;
+    listed?: boolean;
+    played?: boolean;
+    category?: string | null;
+  },
 ): Promise<UserRating> {
   const response = await fetch(`${API_URL}/compatibility/ratings`, {
     method: "POST",
@@ -189,7 +199,7 @@ export async function upsertRating(
     body: JSON.stringify({ jogoId, ...values }),
   });
   const result = await response.json();
-  if (!response.ok) throw new Error(result.message || "Erro ao avaliar jogo");
+  if (!response.ok) throw new Error(result.error || result.message || "Erro ao avaliar jogo");
   return result.data;
 }
 
@@ -197,8 +207,11 @@ export interface FeedPost {
   id: number;
   content: string;
   createdAt: string;
+  rating: number | null;
   user: { id: number; username: string | null; avatarUrl: string | null; email: string } | null;
   jogo: { id: number; title: string; imageUrl: string | null; tags: string[] } | null;
+  likesCount?: number;
+  liked?: boolean;
 }
 
 export interface PublicUser {
@@ -207,8 +220,10 @@ export interface PublicUser {
   avatarUrl: string | null;
 }
 
-export async function getFeedPosts(limit = 6): Promise<FeedPost[]> {
-  const response = await fetch(`${API_URL}/posts/feed?limit=${limit}`);
+export async function getFeedPosts(token?: string | null, limit = 6): Promise<FeedPost[]> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const response = await fetch(`${API_URL}/posts/feed?limit=${limit}`, { headers });
   const result = await response.json();
   if (!response.ok) throw new Error(result.message || "Erro ao buscar feed");
   return result.data;
@@ -687,6 +702,43 @@ export async function getPendingRequests(
   return result.data;
 }
 
+export async function createPost(
+  token: string,
+  payload: {
+    content: string;
+    jogoId?: number | null;
+    category?: string | null;
+    mediaUrl?: string | null;
+    mediaType?: 'image' | 'video' | null;
+  },
+): Promise<void> {
+  const response = await fetch(`${API_URL}/posts`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  });
+  const result = await response.json();
+  if (!response.ok) parseApiError(result, 'Erro ao criar publicação');
+}
+
+export async function likePost(token: string, postId: number): Promise<void> {
+  const response = await fetch(`${API_URL}/posts/${postId}/like`, {
+    method: "POST",
+    headers: authHeaders(token),
+  });
+  const result = await response.json();
+  if (!response.ok) parseApiError(result, "Erro ao curtir post");
+}
+
+export async function unlikePost(token: string, postId: number): Promise<void> {
+  const response = await fetch(`${API_URL}/posts/${postId}/like`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  const result = await response.json();
+  if (!response.ok) parseApiError(result, "Erro ao descurtir post");
+}
+
 export async function approveRequest(
   token: string,
   communityId: number,
@@ -711,4 +763,19 @@ export async function rejectRequest(
   });
   const result = await response.json();
   if (!response.ok) parseApiError(result, "Erro ao rejeitar solicitação");
+}
+
+export async function updateUserProfile(
+  token: string,
+  userId: number,
+  payload: { username?: string | null; avatarUrl?: string | null; bio?: string | null },
+): Promise<{ id: number; email: string; username: string | null; avatarUrl: string | null; bio: string | null }> {
+  const response = await fetch(`${API_URL}/users/${userId}`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  });
+  const result = await response.json();
+  if (!response.ok) parseApiError(result, "Erro ao atualizar perfil");
+  return result.data;
 }

@@ -1,5 +1,6 @@
 import type { Sequelize } from 'sequelize';
 import { DataTypes, Model } from 'sequelize';
+import { Jogo } from './Jogo.js';
 
 export interface UserRatingAttrs {
     id: number;
@@ -78,4 +79,8 @@ export function initUserRatingModel(sequelize: Sequelize): void {
             ],
         },
     );
+}
+
+export function setupUserRatingAssociations(): void {
+    UserRating.belongsTo(Jogo, { foreignKey: 'jogoId', as: 'jogo' });
 }

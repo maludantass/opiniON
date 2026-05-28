@@ -6,6 +6,7 @@ import { JogoRepository } from '../repositories/jogoRepository.js';
 import { UserFollowRepository } from '../repositories/userFollowRepository.js';
 import { UserRatingRepository } from '../repositories/userRatingRepository.js';
 import { UserRepository } from '../repositories/userRepository.js';
+import { PostLikeRepository } from '../repositories/postLikeRepository.js';
 
 export type CompatibilityLabel = 'Alto' | 'Médio' | 'Baixo';
 
@@ -22,6 +23,7 @@ export interface UserCompatibility {
     email: string;
     username: string | null;
     avatarUrl: string | null;
+    bio: string | null;
     score: number;
     label: CompatibilityLabel;
     sharedRatings: number;
@@ -178,12 +180,13 @@ export class CompatibilityService {
         private readonly jogoRepository = new JogoRepository(),
         private readonly userFollowRepository = new UserFollowRepository(),
         private readonly communityMemberRepository = new CommunityMemberRepository(),
+        private readonly postLikeRepository = new PostLikeRepository(),
     ) {}
 
     async listCompatibleUsers(currentUserId: number): Promise<UserCompatibility[]> {
         const [allRatings, allUsers] = await Promise.all([
             this.userRatingRepository.findAll(),
-            this.userRepository.findAll({ attributes: ['id', 'email', 'username', 'avatarUrl'] }),
+            this.userRepository.findAll({ attributes: ['id', 'email', 'username', 'avatarUrl', 'bio'] }),
         ]);
 
         const ratingsByUser = new Map<number, UserRating[]>();
@@ -212,6 +215,7 @@ export class CompatibilityService {
                 email: u.email,
                 username: u.username ?? null,
                 avatarUrl: u.avatarUrl ?? null,
+                bio: u.bio ?? null,
                 score,
                 label: toLabel(score),
                 sharedRatings,
@@ -276,6 +280,7 @@ export class CompatibilityService {
             email: targetUser.email,
             username: targetUser.username ?? null,
             avatarUrl: targetUser.avatarUrl ?? null,
+            bio: targetUser.bio ?? null,
             score,
             label: toLabel(score),
             sharedRatings,
@@ -323,14 +328,24 @@ export class CompatibilityService {
         startOfMonth.setDate(1);
         startOfMonth.setHours(0, 0, 0, 0);
 
-        const [allRatings, allJogos, currentUser, followersTotal, followersEsteMes, followingTotal, comunidadesCount] = await Promise.all([
+        const [
+            allRatings,
+            allJogos,
+            currentUser,
+            followersTotal,
+            followingTotal,
+            comunidadesCount,
+            likesTotal,
+            likesEsteMes,
+        ] = await Promise.all([
             this.userRatingRepository.findAll(),
             this.jogoRepository.findAll({ attributes: ['id', 'title', 'imageUrl', 'tags'] }),
             this.userRepository.findById(userId),
             this.userFollowRepository.countFollowers(userId),
-            this.userFollowRepository.countFollowersSince(userId, startOfMonth),
             this.userFollowRepository.countFollowing(userId),
             this.communityMemberRepository.countByUserId(userId),
+            this.postLikeRepository.countLikesForUser(userId),
+            this.postLikeRepository.countLikesForUserSince(userId, startOfMonth),
         ]);
 
         const jogoMap = new Map(allJogos.map(j => [j.id, j]));
@@ -347,7 +362,7 @@ export class CompatibilityService {
         };
 
         // ── Curtidas (seguidores) ──────────────────────────────────────────────
-        const curtidas = { total: followersTotal, esteMes: followersEsteMes };
+        const curtidas = { total: likesTotal, esteMes: likesEsteMes };
 
         // ── Média de notas ─────────────────────────────────────────────────────
         const mediaNotas = ratedGames.length > 0

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import { useAuth } from "../contexts/AuthContext";
 import {
   listCommunities,
   getMyCommunities,
@@ -191,8 +192,7 @@ type Tab = "discover" | "mine" | "invites";
 
 export default function Comunidades() {
   const navigate = useNavigate();
-  const token = localStorage.getItem("token");
-  const user = (() => { try { return JSON.parse(localStorage.getItem("user") ?? "null"); } catch { return null; } })();
+  const { token, user } = useAuth();
 
   const [tab, setTab] = useState<Tab>("discover");
   const [search, setSearch] = useState("");

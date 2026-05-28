@@ -3,6 +3,8 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import toast from 'react-hot-toast';
 import { getJogos, getMyRatings, upsertRating, type Jogo, type UserRating } from '../services/api';
+import { HeartIcon, BookmarkIcon, SearchIcon } from '../components/icons';
+import { useAuth } from '../contexts/AuthContext';
 
 const CATEGORIES = [
   { id: 1, name: 'Ação', tag: 'Action' },
@@ -26,31 +28,6 @@ const CATEGORIES = [
   { id: 19, name: 'Gratuito', tag: 'Free to Play' },
   { id: 20, name: 'Ação e Aventura', tag: 'Action-Adventure' },
 ];
-
-function SearchIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="8"></circle>
-      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-    </svg>
-  );
-}
-
-function HeartIcon({ filled = false }: { filled?: boolean }) {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
-      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l7.78-7.78a5.5 5.5 0 0 0 1.06-8.84z" />
-    </svg>
-  );
-}
-
-function BookmarkIcon({ filled = false }: { filled?: boolean }) {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
-      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-    </svg>
-  );
-}
 
 function CategoryCard({ name, bgColor, onClick }: { name: string; bgColor: string; onClick: () => void }) {
   return (
@@ -164,13 +141,13 @@ function SwipeCard() {
 }
 
 export default function Buscar() {
+  const { token } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [games, setGames] = useState<Jogo[]>([]);
   const [loading, setLoading] = useState(false);
   const [ratingsMap, setRatingsMap] = useState<Map<number, UserRating>>(new Map());
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const token = localStorage.getItem('token');
 
   // Carrega ratings do usuário uma vez ao montar
   useEffect(() => {
@@ -191,7 +168,7 @@ export default function Buscar() {
     // Atualização otimista
     setRatingsMap((prev) => {
       const next = new Map(prev);
-      next.set(game.id, { ...(current ?? { id: 0, userId: 0, jogoId: game.id, rating: null, favorited: false, listed: false }), favorited: newFav });
+      next.set(game.id, { ...(current ?? { id: 0, userId: 0, jogoId: game.id, rating: null, favorited: false, listed: false, played: false, category: null }), favorited: newFav });
       return next;
     });
     try {
@@ -211,7 +188,7 @@ export default function Buscar() {
     const newListed = !(current?.listed ?? false);
     setRatingsMap((prev) => {
       const next = new Map(prev);
-      next.set(game.id, { ...(current ?? { id: 0, userId: 0, jogoId: game.id, rating: null, favorited: false, listed: false }), listed: newListed });
+      next.set(game.id, { ...(current ?? { id: 0, userId: 0, jogoId: game.id, rating: null, favorited: false, listed: false, played: false, category: null }), listed: newListed });
       return next;
     });
     try {

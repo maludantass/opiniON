@@ -1,4 +1,5 @@
 import type { CreationAttributes, FindOptions } from 'sequelize';
+import { fn, col, Op } from 'sequelize';
 import { CommunityEvent } from '../models/CommunityEvent.js';
 import type { CommunityEventAttrs } from '../models/CommunityEvent.js';
 import { CommunityEventRsvp } from '../models/CommunityEventRsvp.js';
@@ -41,5 +42,25 @@ export class CommunityEventRepository {
 
     countRsvps(eventId: number): Promise<number> {
         return CommunityEventRsvp.count({ where: { eventId } });
+    }
+
+    async findRsvpsBatch(eventIds: number[]): Promise<Map<number, number>> {
+        if (eventIds.length === 0) return new Map();
+        const results = await CommunityEventRsvp.findAll({
+            where: { eventId: { [Op.in]: eventIds } },
+            attributes: ['eventId', [fn('COUNT', col('id')), 'count']],
+            group: ['eventId'],
+            raw: true,
+        }) as unknown as Array<{ eventId: number; count: string }>;
+        return new Map(results.map((r) => [r.eventId, parseInt(r.count, 10)]));
+    }
+
+    async findUserRsvpsBatch(eventIds: number[], userId: number): Promise<Set<number>> {
+        if (eventIds.length === 0) return new Set();
+        const results = await CommunityEventRsvp.findAll({
+            where: { eventId: { [Op.in]: eventIds }, userId },
+            attributes: ['eventId'],
+        });
+        return new Set(results.map((r) => r.eventId));
     }
 }

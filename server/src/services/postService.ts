@@ -5,6 +5,11 @@ import type { Post, PostAttrs } from '../models/Post.js';
 import { PostRepository } from '../repositories/postRepository.js';
 import { JogoRepository } from '../repositories/jogoRepository.js';
 import { UserRepository } from '../repositories/userRepository.js';
+import { UserRating } from '../models/UserRating.js';
+import { normalizePagination } from '../utils/pagination.js';
+import { PostLikeRepository } from '../repositories/postLikeRepository.js';
+import { PostLike } from '../models/PostLike.js';
+import { sequelize } from '../config/sequelize.js';
 
 export type PostMediaType = 'image' | 'video';
 
@@ -106,6 +111,7 @@ export class PostService {
         private readonly postRepository = new PostRepository(),
         private readonly userRepository = new UserRepository(),
         private readonly jogoRepository = new JogoRepository(),
+        private readonly postLikeRepository = new PostLikeRepository(),
     ) {}
 
     async createPost(userId: number, input: CreatePostInput) {
@@ -127,8 +133,7 @@ export class PostService {
     }
 
     async listPosts(filter: PostListFilter) {
-        const limit = Math.min(filter.limit ?? 50, 100);
-        const offset = filter.offset ?? 0;
+        const { limit, offset } = normalizePagination(filter, { defaultLimit: 50, maxLimit: 100 });
         const opts: FindOptions<Post> = {
             limit,
             offset,
@@ -170,16 +175,17 @@ export class PostService {
         return toPublicPost(updatedPost);
     }
 
-    async listFeedPosts(limit = 6) {
+    async listFeedPosts(limit = 6, requestingUserId?: number) {
         const posts = await this.postRepository.findAll({
             limit,
             order: [['createdAt', 'DESC']],
         });
 
+        const postIds = posts.map((p) => p.id);
         const userIds = [...new Set(posts.map((p) => p.userId))];
         const jogoIds = posts.map((p) => p.jogoId).filter((id): id is number => id !== null);
 
-        const [users, jogos] = await Promise.all([
+        const [users, jogos, ratings, likesCountGroup, userLikes] = await Promise.all([
             userIds.length > 0
                 ? this.userRepository.findAll({
                     where: { id: { [Op.in]: userIds } },
@@ -192,28 +198,98 @@ export class PostService {
                     attributes: ['id', 'title', 'imageUrl', 'tags'],
                 })
                 : Promise.resolve([]),
+            userIds.length > 0 && jogoIds.length > 0
+                ? UserRating.findAll({
+                    where: {
+                        userId: { [Op.in]: userIds },
+                        jogoId: { [Op.in]: jogoIds },
+                    },
+                    attributes: ['userId', 'jogoId', 'rating'],
+                })
+                : Promise.resolve([]),
+            postIds.length > 0
+                ? PostLike.findAll({
+                    where: { postId: { [Op.in]: postIds } },
+                    attributes: ['postId', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
+                    group: ['postId'],
+                    raw: true,
+                }) as unknown as Promise<{ postId: number; count: string | number }[]>
+                : Promise.resolve([]),
+            requestingUserId && postIds.length > 0
+                ? PostLike.findAll({
+                    where: {
+                        postId: { [Op.in]: postIds },
+                        userId: requestingUserId,
+                    },
+                    attributes: ['postId'],
+                    raw: true,
+                })
+                : Promise.resolve([]),
         ]);
 
         const userMap = new Map(users.map((u) => [u.id, u]));
         const jogoMap = new Map(jogos.map((j) => [j.id, j]));
+        const ratingMap = new Map(ratings.map((r) => [`${r.userId}-${r.jogoId}`, r.rating]));
+
+        const likesMap = new Map<number, number>();
+        likesCountGroup.forEach((g: any) => {
+            likesMap.set(g.postId, parseInt(String(g.count), 10));
+        });
+
+        const likedSet = new Set<number>();
+        if (userLikes) {
+            userLikes.forEach((l: any) => {
+                likedSet.add(l.postId);
+            });
+        }
 
         return posts.map((p) => {
             const user = userMap.get(p.userId);
             const jogo = p.jogoId ? jogoMap.get(p.jogoId) ?? null : null;
+            const rating = p.jogoId ? ratingMap.get(`${p.userId}-${p.jogoId}`) ?? null : null;
             const tagsFinais: string[] = p.category ? [p.category] : [];
 
             return {
                 id: p.id,
                 content: p.content,
                 createdAt: p.createdAt,
+                rating,
                 user: user
                     ? { id: user.id, username: user.username ?? null, avatarUrl: user.avatarUrl ?? null, email: user.email }
                     : null,
                 jogo: jogo
                     ? { id: jogo.id, title: jogo.title, imageUrl: jogo.imageUrl, tags: tagsFinais }
                     : null,
+                likesCount: likesMap.get(p.id) ?? 0,
+                liked: likedSet.has(p.id),
             };
         });
+    }
+
+    async likePost(userId: number, postId: number): Promise<{ success: boolean }> {
+        const post = await this.postRepository.findById(postId);
+        if (!post) throw new AppError('Post não encontrado', 404);
+
+        const existingLike = await this.postLikeRepository.findOne(userId, postId);
+        if (existingLike) {
+            throw new AppError('Você já curtiu este post', 400);
+        }
+
+        await this.postLikeRepository.create(userId, postId);
+        return { success: true };
+    }
+
+    async unlikePost(userId: number, postId: number): Promise<{ success: boolean }> {
+        const post = await this.postRepository.findById(postId);
+        if (!post) throw new AppError('Post não encontrado', 404);
+
+        const existingLike = await this.postLikeRepository.findOne(userId, postId);
+        if (!existingLike) {
+            throw new AppError('Você não curtiu este post', 400);
+        }
+
+        await this.postLikeRepository.destroy(userId, postId);
+        return { success: true };
     }
 
     async deletePost(id: number, userId: number) {
@@ -222,4 +298,4 @@ export class PostService {
         if (post.userId !== userId) throw new AppError('Sem permissão para excluir este post', 403);
         await this.postRepository.destroyById(id);
     }
-}
+}

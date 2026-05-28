@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 import Navbar from "../components/Navbar";
 import toast from "react-hot-toast";
 import {
@@ -61,8 +62,7 @@ export default function ComunidadeDetalhe() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const communityId = Number(id);
-  const token = localStorage.getItem("token");
-  const user = (() => { try { return JSON.parse(localStorage.getItem("user") ?? "null"); } catch { return null; } })();
+  const { token, user } = useAuth();
   const currentUserId: number | null = user?.id ?? null;
 
   const [community, setCommunity] = useState<Community | null>(null);

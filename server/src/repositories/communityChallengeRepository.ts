@@ -1,4 +1,5 @@
 import type { CreationAttributes } from 'sequelize';
+import { Op } from 'sequelize';
 import { CommunityChallenge } from '../models/CommunityChallenge.js';
 import type { CommunityChallengeAttrs } from '../models/CommunityChallenge.js';
 import { CommunityChallengeContribution } from '../models/CommunityChallengeContribution.js';
@@ -29,6 +30,20 @@ export class CommunityChallengeRepository {
 
     findContributions(challengeId: number): Promise<CommunityChallengeContribution[]> {
         return CommunityChallengeContribution.findAll({ where: { challengeId } });
+    }
+
+    async findContributionsBatch(challengeIds: number[]): Promise<Map<number, CommunityChallengeContribution[]>> {
+        if (challengeIds.length === 0) return new Map();
+        const all = await CommunityChallengeContribution.findAll({
+            where: { challengeId: { [Op.in]: challengeIds } },
+        });
+        const map = new Map<number, CommunityChallengeContribution[]>();
+        for (const c of all) {
+            const list = map.get(c.challengeId) ?? [];
+            list.push(c);
+            map.set(c.challengeId, list);
+        }
+        return map;
     }
 
     async upsertContribution(challengeId: number, userId: number, amount: number): Promise<number> {

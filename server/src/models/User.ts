@@ -7,6 +7,7 @@ export interface UserAttrs {
     passwordHash: string;
     username?: string | null;
     avatarUrl?: string | null;
+    bio?: string | null;
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -17,6 +18,7 @@ export class User extends Model<UserAttrs> implements UserAttrs {
     declare passwordHash: string;
     declare username: string | null;
     declare avatarUrl: string | null;
+    declare bio: string | null;
     declare readonly createdAt: Date;
     declare readonly updatedAt: Date;
 
@@ -24,7 +26,7 @@ export class User extends Model<UserAttrs> implements UserAttrs {
     declare following?: User[];
 }
 
-const publicUserAttributes = ['id', 'username', 'avatarUrl'] as const;
+const publicUserAttributes = ['id', 'username', 'avatarUrl', 'bio'] as const;
 
 export function setupUserFollowScopes(): void {
     User.addScope('withFollowers', {
@@ -91,6 +93,11 @@ export function initUserModel(sequelize: Sequelize): void {
             },
             avatarUrl: {
                 type: DataTypes.STRING(2048),
+                allowNull: true,
+                defaultValue: null,
+            },
+            bio: {
+                type: DataTypes.STRING(500),
                 allowNull: true,
                 defaultValue: null,
             },

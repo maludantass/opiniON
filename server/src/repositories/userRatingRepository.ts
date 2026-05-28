@@ -1,10 +1,14 @@
 import type { CreationAttributes } from 'sequelize';
 import type { UserRatingAttrs } from '../models/UserRating.js';
 import { UserRating } from '../models/UserRating.js';
+import { Jogo } from '../models/Jogo.js';
 
 export class UserRatingRepository {
     findByUserId(userId: number): Promise<UserRating[]> {
-        return UserRating.findAll({ where: { userId } });
+        return UserRating.findAll({
+            where: { userId },
+            include: [{ model: Jogo, as: 'jogo', attributes: ['id', 'title', 'imageUrl', 'tags', 'releaseYear'] }],
+        });
     }
 
     findByUserAndJogo(userId: number, jogoId: number): Promise<UserRating | null> {

@@ -16,6 +16,7 @@ import {
   type DashboardStats,
   type GostoGame,
 } from "../services/api";
+import { useAuth } from "../contexts/AuthContext";
 
 const PURPLE = "#6C3BFF";
 const PURPLE_LIGHT = "#A78BFA";
@@ -218,7 +219,7 @@ function MonthlyActivityChart({ ratings }: { ratings: UserRating[] }) {
         <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#6b7280" }} axisLine={false} tickLine={false} />
         <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "#6b7280" }} axisLine={false} tickLine={false} width={20} />
         <Tooltip
-          formatter={(v: number) => [`${v} interação(ões)`, "Atividade"]}
+          formatter={(v: any) => [`${v} interação(ões)`, "Atividade"]}
           contentStyle={{ borderRadius: 12, fontSize: 12, border: "1px solid #e5e7eb" }}
           cursor={{ fill: "#F3F0FF" }}
         />
@@ -250,7 +251,7 @@ function DnaGamerChart({ data }: { data: { tag: string; count: number }[] }) {
         <PolarRadiusAxis angle={90} domain={[0, Math.max(...radarData.map((d) => d.count))]} tick={false} axisLine={false} />
         <Radar name="DNA" dataKey="count" stroke={PURPLE} fill={PURPLE} fillOpacity={0.25} strokeWidth={2} />
         <Tooltip
-          formatter={(v: number) => [`${v} interação(ões)`, "DNA"]}
+          formatter={(v: any) => [`${v} interação(ões)`, "DNA"]}
           contentStyle={{ borderRadius: 12, fontSize: 12, border: "1px solid #e5e7eb" }}
         />
       </RadarChart>
@@ -345,13 +346,13 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
 export default function Dashboard() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { token } = useAuth();
   const [users, setUsers] = useState<UserCompatibility[]>([]);
   const [ratings, setRatings] = useState<UserRating[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
     if (!token) return;
 
     Promise.all([
@@ -365,7 +366,7 @@ export default function Dashboard() {
         setStats(s);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [token]);
 
   const bestMatch = users[0] ?? null;
   const top5 = users.slice(0, 5);
@@ -445,7 +446,7 @@ export default function Dashboard() {
                   <>
                     <div className="flex items-start justify-around gap-4">
                       {top5.map((u) => (
-                        <UserCompatCircle key={u.userId} user={u} onView={(id) => navigate(`/comunidade/${id}`)} />
+                        <UserCompatCircle key={u.userId} user={u} onView={(id) => navigate(`/compatibilidade/${id}`)} />
                       ))}
                     </div>
                     <p className="mt-5 text-sm text-gray-500 border-t border-gray-100 pt-4">
