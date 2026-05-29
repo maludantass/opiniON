@@ -37,4 +37,29 @@ export class UserRatingRepository {
     destroyByUserAndJogo(userId: number, jogoId: number): Promise<number> {
         return UserRating.destroy({ where: { userId, jogoId } });
     }
+
+    findJogoIdsByUserId(userId: number): Promise<number[]> {
+        return UserRating.findAll({
+            where: { userId },
+            attributes: ['jogoId'],
+            raw: true,
+        }).then((rows) => rows.map((row) => row.jogoId));
+    }
+
+    findFavoritedByUserId(
+        userId: number,
+        limit: number,
+        offset: number,
+    ): Promise<UserRating[]> {
+        return UserRating.findAll({
+            where: { userId, favorited: true },
+            limit,
+            offset,
+            order: [['updatedAt', 'DESC']],
+        });
+    }
+
+    countFavoritedByUserId(userId: number): Promise<number> {
+        return UserRating.count({ where: { userId, favorited: true } });
+    }
 }

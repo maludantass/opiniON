@@ -3,6 +3,7 @@ import * as opinionController from '../controllers/opinionController.js';
 import { CompatibilityRoutes } from './compatibilityRoutes.js';
 import { JogoRoutes } from './jogoRoutes.js';
 import { PostRoutes } from './postRoutes.js';
+import { SwiperRoutes } from './swiperRoutes.js';
 import { UserRoutes } from './userRoutes.js';
 
 export class OpinionRoutes {
@@ -11,6 +12,7 @@ export class OpinionRoutes {
     readonly jogoRoutes: JogoRoutes;
     readonly postRoutes: PostRoutes;
     readonly compatibilityRoutes: CompatibilityRoutes;
+    readonly swiperRoutes: SwiperRoutes;
 
     constructor() {
         this.router = Router();
@@ -18,6 +20,7 @@ export class OpinionRoutes {
         this.jogoRoutes = new JogoRoutes();
         this.postRoutes = new PostRoutes();
         this.compatibilityRoutes = new CompatibilityRoutes();
+        this.swiperRoutes = new SwiperRoutes();
         this.register();
     }
 
@@ -27,6 +30,7 @@ export class OpinionRoutes {
         this.router.use('/jogos', this.jogoRoutes.router);
         this.router.use('/posts', this.postRoutes.router);
         this.router.use('/compatibility', this.compatibilityRoutes.router);
+        this.router.use('/swiper', this.swiperRoutes.router);
     }
 }
 
