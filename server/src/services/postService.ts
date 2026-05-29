@@ -116,14 +116,54 @@ export class PostService {
 
     async createPost(userId: number, input: CreatePostInput) {
         const media = normalizeMedia(input.mediaUrl, input.mediaType);
+        const content = normalizeContent(input.content);
+        const category = input.category?.trim() || null;
+
+        // One review per game: update existing instead of creating a duplicate
+        if (input.jogoId) {
+            const existing = await this.postRepository.findAll({
+                where: { userId, jogoId: input.jogoId } as any,
+                limit: 1,
+                order: [['createdAt', 'DESC']],
+            });
+            if (existing.length > 0) {
+                const post = existing[0]!;
+                await this.postRepository.updateById(post.id, { content, category, ...media });
+                const updated = await this.postRepository.findById(post.id);
+                return toPublicPost(updated!);
+            }
+        }
+
         const post = await this.postRepository.create({
             userId,
-            content: normalizeContent(input.content),
+            content,
             jogoId: input.jogoId ?? null,
-            category: input.category?.trim() || null,
+            category,
             ...media,
         });
         return toPublicPost(post);
+    }
+
+    async getPostForGame(userId: number, jogoId: number) {
+        const posts = await this.postRepository.findAll({
+            where: { userId, jogoId } as any,
+            limit: 1,
+            order: [['createdAt', 'DESC']],
+        });
+        if (posts.length === 0) return null;
+        const p = posts[0]!;
+
+        const rating = await UserRating.findOne({
+            where: { userId, jogoId },
+            attributes: ['rating', 'played', 'category'],
+        });
+
+        return {
+            post: toPublicPost(p),
+            rating: rating
+                ? { rating: rating.rating, played: rating.played, category: rating.category }
+                : null,
+        };
     }
 
     async getPostById(id: number) {
@@ -260,6 +300,72 @@ export class PostService {
                 jogo: jogo
                     ? { id: jogo.id, title: jogo.title, imageUrl: jogo.imageUrl, tags: tagsFinais }
                     : null,
+                likesCount: likesMap.get(p.id) ?? 0,
+                liked: likedSet.has(p.id),
+            };
+        });
+    }
+
+    async listUserPosts(userId: number, requestingUserId?: number) {
+        const posts = await this.postRepository.findAll({
+            where: { userId } as any,
+            order: [['createdAt', 'DESC']],
+        });
+
+        if (posts.length === 0) return [];
+
+        const postIds = posts.map((p) => p.id);
+        const jogoIds = posts.map((p) => p.jogoId).filter((id): id is number => id !== null);
+        const user = await this.userRepository.findById(userId);
+
+        const [jogos, ratings, likesCountGroup, userLikes] = await Promise.all([
+            jogoIds.length > 0
+                ? this.jogoRepository.findAll({
+                    where: { id: { [Op.in]: jogoIds } },
+                    attributes: ['id', 'title', 'imageUrl', 'tags'],
+                })
+                : Promise.resolve([]),
+            jogoIds.length > 0
+                ? UserRating.findAll({
+                    where: { userId, jogoId: { [Op.in]: jogoIds } },
+                    attributes: ['userId', 'jogoId', 'rating'],
+                })
+                : Promise.resolve([]),
+            PostLike.findAll({
+                where: { postId: { [Op.in]: postIds } },
+                attributes: ['postId', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
+                group: ['postId'],
+                raw: true,
+            }) as unknown as Promise<{ postId: number; count: string | number }[]>,
+            requestingUserId
+                ? PostLike.findAll({
+                    where: { postId: { [Op.in]: postIds }, userId: requestingUserId },
+                    attributes: ['postId'],
+                    raw: true,
+                })
+                : Promise.resolve([]),
+        ]);
+
+        const jogoMap = new Map(jogos.map((j) => [j.id, j]));
+        const ratingMap = new Map(ratings.map((r) => [`${r.userId}-${r.jogoId}`, r.rating]));
+        const likesMap = new Map<number, number>();
+        (likesCountGroup as any[]).forEach((g) => likesMap.set(g.postId, parseInt(String(g.count), 10)));
+        const likedSet = new Set<number>();
+        (userLikes as any[]).forEach((l) => likedSet.add(l.postId));
+
+        return posts.map((p) => {
+            const jogo = p.jogoId ? jogoMap.get(p.jogoId) ?? null : null;
+            const rating = p.jogoId ? ratingMap.get(`${p.userId}-${p.jogoId}`) ?? null : null;
+            const tagsFinais: string[] = p.category ? [p.category] : [];
+            return {
+                id: p.id,
+                content: p.content,
+                createdAt: p.createdAt,
+                rating,
+                user: user
+                    ? { id: user.id, username: user.username ?? null, avatarUrl: user.avatarUrl ?? null, email: user.email }
+                    : null,
+                jogo: jogo ? { id: jogo.id, title: jogo.title, imageUrl: jogo.imageUrl, tags: tagsFinais } : null,
                 likesCount: likesMap.get(p.id) ?? 0,
                 liked: likedSet.has(p.id),
             };

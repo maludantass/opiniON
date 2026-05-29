@@ -3,6 +3,7 @@ import * as opinionController from '../controllers/opinionController.js';
 import { CompatibilityRoutes } from './compatibilityRoutes.js';
 import { CommunityRoutes } from './communityRoutes.js';
 import { JogoRoutes } from './jogoRoutes.js';
+import { ListaRoutes } from './listaRoutes.js';
 import { PostRoutes } from './postRoutes.js';
 import { SwiperRoutes } from './swiperRoutes.js';
 import { UserRoutes } from './userRoutes.js';
@@ -15,6 +16,7 @@ export class OpinionRoutes {
     readonly compatibilityRoutes: CompatibilityRoutes;
     readonly communityRoutes: CommunityRoutes;
     readonly swiperRoutes: SwiperRoutes;
+    readonly listaRoutes: ListaRoutes;
 
     constructor() {
         this.router = Router();
@@ -24,6 +26,7 @@ export class OpinionRoutes {
         this.compatibilityRoutes = new CompatibilityRoutes();
         this.communityRoutes = new CommunityRoutes();
         this.swiperRoutes = new SwiperRoutes();
+        this.listaRoutes = new ListaRoutes();
         this.register();
     }
 
@@ -35,6 +38,7 @@ export class OpinionRoutes {
         this.router.use('/compatibility', this.compatibilityRoutes.router);
         this.router.use('/communities', this.communityRoutes.router);
         this.router.use('/swiper', this.swiperRoutes.router);
+        this.router.use('/listas', this.listaRoutes.router);
     }
 }
 

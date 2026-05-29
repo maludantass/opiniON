@@ -220,6 +220,29 @@ export interface PublicUser {
   avatarUrl: string | null;
 }
 
+export interface MyPostForGame {
+  post: { id: number; content: string; category: string | null } | null;
+  rating: { rating: number | null; played: boolean; category: string | null } | null;
+}
+
+export async function getMyPostForGame(token: string, jogoId: number): Promise<MyPostForGame> {
+  const response = await fetch(`${API_URL}/posts/mine/jogo/${jogoId}`, {
+    headers: authHeaders(token),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Erro ao buscar review");
+  return result.data;
+}
+
+export async function getMyPosts(token: string): Promise<FeedPost[]> {
+  const response = await fetch(`${API_URL}/posts/mine`, {
+    headers: authHeaders(token),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Erro ao buscar reviews");
+  return result.data;
+}
+
 export async function getFeedPosts(token?: string | null, limit = 6): Promise<FeedPost[]> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -763,6 +786,75 @@ export async function rejectRequest(
   });
   const result = await response.json();
   if (!response.ok) parseApiError(result, "Erro ao rejeitar solicitação");
+}
+
+// ─── Listas ──────────────────────────────────────────────────────────────────
+
+export interface Lista {
+  id: number;
+  userId: number;
+  title: string;
+  description: string | null;
+  type: "public" | "private";
+  jogoIds: number[];
+  jogos: Pick<Jogo, "id" | "title" | "imageUrl" | "tags">[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function getMinhasListas(token: string): Promise<Lista[]> {
+  const response = await fetch(`${API_URL}/listas/minhas`, {
+    headers: authHeaders(token),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Erro ao buscar listas");
+  return result.data;
+}
+
+export async function createLista(
+  token: string,
+  payload: { title: string; description?: string | null; type: "public" | "private" },
+): Promise<Lista> {
+  const response = await fetch(`${API_URL}/listas`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Erro ao criar lista");
+  return result.data;
+}
+
+export async function deleteLista(token: string, id: number): Promise<void> {
+  const response = await fetch(`${API_URL}/listas/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  if (!response.ok) {
+    const result = await response.json();
+    throw new Error(result.error || "Erro ao remover lista");
+  }
+}
+
+export async function addJogoToLista(token: string, listaId: number, jogoId: number): Promise<Lista> {
+  const response = await fetch(`${API_URL}/listas/${listaId}/jogos`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ jogoId }),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Erro ao adicionar jogo");
+  return result.data;
+}
+
+export async function removeJogoFromLista(token: string, listaId: number, jogoId: number): Promise<Lista> {
+  const response = await fetch(`${API_URL}/listas/${listaId}/jogos/${jogoId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Erro ao remover jogo");
+  return result.data;
 }
 
 export async function updateUserProfile(

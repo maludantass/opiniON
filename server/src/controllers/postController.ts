@@ -82,6 +82,27 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
     }
 };
 
+export const getMyPostForGame = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const authId = requireAuthUserId(req.authUserId);
+        const jogoId = parseRouteId(req.params['jogoId']);
+        const data = await postService.getPostForGame(authId, jogoId);
+        sendSuccess(res, data);
+    } catch (e) {
+        handleError(res, e);
+    }
+};
+
+export const getMyPosts = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const authId = requireAuthUserId(req.authUserId);
+        const data = await postService.listUserPosts(authId, authId);
+        sendSuccess(res, data);
+    } catch (e) {
+        handleError(res, e);
+    }
+};
+
 export const deletePost = async (req: Request, res: Response): Promise<void> => {
     try {
         const id = parseRouteId(req.params['id']);

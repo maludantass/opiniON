@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
@@ -22,11 +22,18 @@ import {
   getMyRatings,
   getDashboardStats,
   updateUserProfile,
+  getMinhasListas,
+  createLista,
+  deleteLista,
+  getMyPosts,
   type UserCompatibility,
   type UserRating,
   type DashboardStats,
   type GostoGame,
+  type Lista,
+  type FeedPost,
 } from "../services/api";
+import AddToListaModal from "../components/AddToListaModal";
 import { useAuth } from "../contexts/AuthContext";
 
 type ProfileTab =
@@ -823,25 +830,265 @@ function MeusJogosTab({ ratings }: { ratings: UserRating[] }) {
 
 // ─── Listas Tab ───────────────────────────────────────────────────────────────
 
-function ListasTab() {
+function formatTimeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days === 0) return "hoje";
+  if (days === 1) return "há 1 dia";
+  if (days < 7) return `há ${days} dias`;
+  const weeks = Math.floor(days / 7);
+  if (weeks === 1) return "há 1 semana";
+  if (weeks < 4) return `há ${weeks} semanas`;
+  const months = Math.floor(days / 30);
+  if (months === 1) return "há 1 mês";
+  return `há ${months} meses`;
+}
+
+function CreateListaModal({
+  onClose,
+  onCreate,
+}: {
+  onClose: () => void;
+  onCreate: (data: { title: string; description: string; type: "public" | "private" }) => Promise<void>;
+}) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [type, setType] = useState<"public" | "private">("public");
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit() {
+    if (!title.trim()) {
+      toast.error("Digite um título para a lista");
+      return;
+    }
+    setSaving(true);
+    try {
+      await onCreate({ title, description, type });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
-    <div className="flex flex-col items-center justify-center py-20 gap-5 bg-white rounded-2xl border border-gray-200 shadow-sm">
-      <div className="text-center">
-        <p className="text-base font-semibold text-gray-700 mb-1">
-          Você ainda não tem listas
-        </p>
-        <p className="text-xs text-gray-400">
-          Crie listas para organizar seus jogos favoritos
-        </p>
-      </div>
-      <button
-        type="button"
-        onClick={() => toast("Em breve!", { icon: "🚧" })}
-        className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#6C3BFF] text-white text-sm font-medium hover:bg-[#5b30e0] transition"
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl"
+        onClick={(e) => e.stopPropagation()}
       >
-        <span className="text-lg leading-none">+</span> Criar nova lista
-      </button>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-base font-bold text-gray-800">Nova lista</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">
+              Título *
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Ex: Melhores RPGs de todos os tempos"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-200"
+              autoFocus
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">
+              Descrição (opcional)
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Descreva sua lista..."
+              rows={3}
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-purple-200"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-2 block">
+              Visibilidade
+            </label>
+            <div className="flex gap-2">
+              {(["public", "private"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setType(t)}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium transition ${
+                    type === t
+                      ? "bg-[#6C3BFF] text-white"
+                      : "border border-gray-200 text-gray-600 hover:bg-purple-50"
+                  }`}
+                >
+                  {t === "public" ? "Pública" : "Privada"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={saving || !title.trim()}
+            className="w-full bg-[#6C3BFF] text-white rounded-xl py-2.5 text-sm font-medium hover:bg-[#5b30e0] transition disabled:opacity-60"
+          >
+            {saving ? "Criando..." : "Criar lista"}
+          </button>
+        </div>
+      </div>
     </div>
+  );
+}
+
+function ListaCard({
+  lista,
+  onDelete,
+}: {
+  lista: Lista;
+  onDelete: (id: number) => void;
+}) {
+  const timeAgo = formatTimeAgo(lista.updatedAt);
+  const displayJogos = lista.jogos.slice(0, 3);
+  const extra = lista.jogos.length - 3;
+
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="text-sm font-bold text-[#6C3BFF] flex-1 min-w-0 leading-snug">
+          {lista.title}
+        </h3>
+        <span
+          className={`text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 ${
+            lista.type === "public"
+              ? "bg-purple-100 text-purple-700"
+              : "bg-gray-100 text-gray-500"
+          }`}
+        >
+          {lista.type === "public" ? "Pública" : "Privada"}
+        </span>
+      </div>
+
+      <p className="text-xs text-gray-400">
+        {lista.jogoIds.length} {lista.jogoIds.length === 1 ? "jogo" : "jogos"} · atualizada {timeAgo}
+      </p>
+
+      {lista.jogos.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {displayJogos.map((j) => (
+            <span
+              key={j.id}
+              className="text-[10px] px-2 py-1 rounded-full bg-gray-100 text-gray-600 truncate max-w-[120px]"
+            >
+              {j.title}
+            </span>
+          ))}
+          {extra > 0 && (
+            <span className="text-[10px] px-2 py-1 rounded-full bg-gray-100 text-gray-500">
+              +{extra}
+            </span>
+          )}
+        </div>
+      )}
+
+      <div className="flex items-center gap-4 pt-2 border-t border-gray-100">
+        <span className="flex items-center gap-1 text-xs text-gray-400">
+          ♡ 0 curtidas
+        </span>
+        <span className="flex items-center gap-1 text-xs text-gray-400">
+          ○ 0 comentários
+        </span>
+        <button
+          type="button"
+          onClick={() => onDelete(lista.id)}
+          className="ml-auto text-[10px] text-red-400 hover:text-red-600 transition"
+        >
+          Remover
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ListasTab({
+  token,
+  listas,
+  setListas,
+}: {
+  token: string;
+  listas: Lista[];
+  setListas: React.Dispatch<React.SetStateAction<Lista[]>>;
+}) {
+  const [showModal, setShowModal] = useState(false);
+
+  async function handleCreate(data: {
+    title: string;
+    description: string;
+    type: "public" | "private";
+  }) {
+    try {
+      const nova = await createLista(token, data);
+      setListas((prev) => [nova, ...prev]);
+      setShowModal(false);
+      toast.success("Lista criada!");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao criar lista");
+    }
+  }
+
+  async function handleDelete(id: number) {
+    try {
+      await deleteLista(token, id);
+      setListas((prev) => prev.filter((l) => l.id !== id));
+      toast.success("Lista removida");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao remover lista");
+    }
+  }
+
+  return (
+    <>
+      {showModal && (
+        <CreateListaModal
+          onClose={() => setShowModal(false)}
+          onCreate={handleCreate}
+        />
+      )}
+
+      <div className="grid grid-cols-2 gap-4">
+        {listas.map((lista) => (
+          <ListaCard key={lista.id} lista={lista} onDelete={handleDelete} />
+        ))}
+
+        <button
+          type="button"
+          onClick={() => setShowModal(true)}
+          className="rounded-2xl border-2 border-dashed border-purple-200 bg-white p-6 flex flex-col items-center justify-center gap-3 hover:border-purple-400 hover:bg-purple-50 transition cursor-pointer min-h-[140px]"
+        >
+          <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center text-[#6C3BFF] text-2xl font-light">
+            +
+          </div>
+          <p className="text-sm font-semibold text-gray-700">
+            Criar uma nova lista
+          </p>
+          <span className="px-4 py-1.5 rounded-full bg-[#6C3BFF] text-white text-xs font-medium">
+            Criar agora
+          </span>
+        </button>
+      </div>
+    </>
   );
 }
 
@@ -849,9 +1096,20 @@ function ListasTab() {
 
 type SalvosFilter = "jogos" | "listas" | "reviews";
 
-function SalvosTab({ ratings }: { ratings: UserRating[] }) {
+function SalvosTab({
+  ratings,
+  listas,
+  token,
+  myPosts,
+}: {
+  ratings: UserRating[];
+  listas: Lista[];
+  token: string;
+  myPosts: FeedPost[];
+}) {
   const [sub, setSub] = useState<SalvosFilter>("jogos");
   const [visible, setVisible] = useState(6);
+  const [addToListaRating, setAddToListaRating] = useState<UserRating | null>(null);
 
   const favorited = useMemo(
     () => ratings.filter((r) => r.favorited),
@@ -860,12 +1118,21 @@ function SalvosTab({ ratings }: { ratings: UserRating[] }) {
 
   const SUB_TABS: { key: SalvosFilter; label: string }[] = [
     { key: "jogos", label: `Jogos (${favorited.length})` },
-    { key: "listas", label: "Listas (0)" },
-    { key: "reviews", label: "Reviews (0)" },
+    { key: "listas", label: `Listas (${listas.length})` },
+    { key: "reviews", label: `Reviews (${myPosts.length})` },
   ];
 
   return (
     <div>
+      {addToListaRating && addToListaRating.jogo && (
+        <AddToListaModal
+          token={token}
+          jogoId={addToListaRating.jogoId}
+          jogoTitle={addToListaRating.jogo.title}
+          onClose={() => setAddToListaRating(null)}
+        />
+      )}
+
       <div className="flex items-center gap-3 mb-5">
         {SUB_TABS.map((t) => (
           <button
@@ -900,7 +1167,7 @@ function SalvosTab({ ratings }: { ratings: UserRating[] }) {
                 return (
                   <div
                     key={rating.id}
-                    className="rounded-2xl overflow-hidden border border-gray-200 shadow-sm bg-white hover:shadow-md transition"
+                    className="rounded-2xl overflow-hidden border border-gray-200 shadow-sm bg-white hover:shadow-md transition group"
                   >
                     <div className="relative aspect-[3/4]">
                       {jogo.imageUrl ? (
@@ -919,6 +1186,17 @@ function SalvosTab({ ratings }: { ratings: UserRating[] }) {
                           {rating.rating.toFixed(1)}
                         </div>
                       )}
+                      <button
+                        type="button"
+                        onClick={() => setAddToListaRating(rating)}
+                        title="Adicionar a uma lista"
+                        className="absolute top-2 right-2 h-7 w-7 rounded-full bg-white/90 shadow flex items-center justify-center text-gray-500 hover:text-[#6C3BFF] transition opacity-0 group-hover:opacity-100"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
+                          <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+                        </svg>
+                      </button>
                     </div>
                     <div className="p-3">
                       <p className="text-xs font-semibold text-gray-800 truncate">
@@ -946,6 +1224,100 @@ function SalvosTab({ ratings }: { ratings: UserRating[] }) {
               </div>
             )}
           </>
+        )
+      ) : sub === "reviews" ? (
+        myPosts.length === 0 ? (
+          <div className="py-16 text-center text-gray-400 text-sm bg-white rounded-2xl border border-gray-200 shadow-sm">
+            Você ainda não publicou nenhuma review. Acesse{" "}
+            <span className="text-[#6C3BFF] font-medium">Publicação</span> para criar uma.
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-4">
+            {myPosts.map((post) => (
+              <div
+                key={post.id}
+                className="rounded-2xl border border-gray-200 bg-white shadow-sm p-4 flex flex-col gap-3 hover:shadow-md transition"
+              >
+                {post.user && (
+                  <div className="flex items-center gap-2">
+                    {post.user.avatarUrl ? (
+                      <img src={post.user.avatarUrl} alt={post.user.username ?? ""} className="h-7 w-7 rounded-full object-cover" />
+                    ) : (
+                      <div className="h-7 w-7 rounded-full bg-[#6C3BFF] flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                        {(post.user.username ?? post.user.email).slice(0, 2).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-gray-800 truncate">
+                        {post.user.username ?? post.user.email.split("@")[0]}
+                      </p>
+                      {post.user.username && (
+                        <p className="text-[10px] text-gray-400 truncate">
+                          @{post.user.username.toLowerCase().replace(/\s+/g, "")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {post.jogo && (
+                  <div className="flex items-center gap-3">
+                    {post.jogo.imageUrl ? (
+                      <img src={post.jogo.imageUrl} alt={post.jogo.title} className="h-16 w-12 rounded-lg object-cover shrink-0 shadow-sm" />
+                    ) : (
+                      <div className="h-16 w-12 rounded-lg bg-purple-100 flex items-center justify-center text-xl shrink-0">🎮</div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-gray-800 truncate">{post.jogo.title}</p>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {post.jogo.tags.slice(0, 2).map((tag) => (
+                          <span key={tag} className="text-[9px] bg-[#F3F0FF] text-[#6C3BFF] px-1.5 py-0.5 rounded-full font-medium">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    {post.rating !== null && (
+                      <div className="text-right shrink-0">
+                        <p className="text-[10px] text-gray-400">Nota</p>
+                        <p className="text-base font-bold text-[#6C3BFF]">{post.rating.toFixed(1)}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <span className="text-[9px] font-semibold uppercase tracking-wide text-purple-400 bg-purple-50 px-2 py-0.5 rounded-full">
+                    Review
+                  </span>
+                  <p className="text-[11px] text-gray-600 mt-2 line-clamp-3 leading-relaxed">
+                    {post.content}
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                  <span className="text-[10px] text-gray-400">
+                    ♡ {post.likesCount ?? 0} curtidas
+                  </span>
+                  <span className="text-[10px] text-gray-400">
+                    {new Date(post.createdAt).toLocaleDateString("pt-BR")}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      ) : sub === "listas" ? (
+        listas.length === 0 ? (
+          <div className="py-16 text-center text-gray-400 text-sm bg-white rounded-2xl border border-gray-200 shadow-sm">
+            Nenhuma lista criada ainda. Crie listas na aba Listas.
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            {listas.map((lista) => (
+              <ListaCard key={lista.id} lista={lista} onDelete={() => {}} />
+            ))}
+          </div>
         )
       ) : (
         <div className="py-16 text-center text-gray-400 text-sm bg-white rounded-2xl border border-gray-200 shadow-sm">
@@ -1055,6 +1427,8 @@ export default function Perfil() {
   const [ratings, setRatings] = useState<UserRating[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [users, setUsers] = useState<UserCompatibility[]>([]);
+  const [listas, setListas] = useState<Lista[]>([]);
+  const [myPosts, setMyPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -1063,11 +1437,15 @@ export default function Perfil() {
       getCompatibleUsers(token),
       getMyRatings(token),
       getDashboardStats(token),
+      getMinhasListas(token),
+      getMyPosts(token),
     ])
-      .then(([u, r, s]) => {
+      .then(([u, r, s, l, p]) => {
         setUsers(u);
         setRatings(r);
         setStats(s);
+        setListas(l);
+        setMyPosts(p);
       })
       .catch(() => toast.error("Erro ao carregar dados do perfil"))
       .finally(() => setLoading(false));
@@ -1095,8 +1473,12 @@ export default function Perfil() {
                 <DashboardTab ratings={ratings} stats={stats} users={users} />
               )}
               {activeTab === "jogos" && <MeusJogosTab ratings={ratings} />}
-              {activeTab === "listas" && <ListasTab />}
-              {activeTab === "salvos" && <SalvosTab ratings={ratings} />}
+              {activeTab === "listas" && token && (
+                <ListasTab token={token} listas={listas} setListas={setListas} />
+              )}
+              {activeTab === "salvos" && token && (
+                <SalvosTab ratings={ratings} listas={listas} token={token} myPosts={myPosts} />
+              )}
               {activeTab === "configuracoes" && token && user && (
                 <ConfiguracoesTab token={token} userId={user.id} />
               )}
