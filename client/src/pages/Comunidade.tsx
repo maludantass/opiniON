@@ -168,7 +168,7 @@ function SwipeBanner() {
         </h2>
         <button
           type="button"
-          onClick={() => navigate('/buscar')}
+          onClick={() => navigate('/swipe')}
           className="rounded-full bg-white px-6 py-2.5 text-xs font-bold text-gray-900 hover:bg-gray-100 transition shadow-sm w-fit cursor-pointer"
         >
           Ir para o Swipe

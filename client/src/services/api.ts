@@ -871,3 +871,42 @@ export async function updateUserProfile(
   if (!response.ok) parseApiError(result, "Erro ao atualizar perfil");
   return result.data;
 }
+
+// ─── Swiper ──────────────────────────────────────────────────────────────────
+
+export type SwipeAction = "pass" | "favorite";
+
+export interface SwiperNextResponse {
+  jogo: Jogo | null;
+  remaining: number;
+}
+
+export interface SwiperSwipeResponse {
+  jogoId: number;
+  action: SwipeAction;
+  favorited: boolean;
+}
+
+export async function getSwiperNext(token: string): Promise<SwiperNextResponse> {
+  const response = await fetch(`${API_URL}/swiper/next`, {
+    headers: authHeaders(token),
+  });
+  const result = await response.json();
+  if (!response.ok) parseApiError(result, "Erro ao buscar próximo jogo");
+  return result.data;
+}
+
+export async function postSwiperSwipe(
+  token: string,
+  jogoId: number,
+  action: SwipeAction,
+): Promise<SwiperSwipeResponse> {
+  const response = await fetch(`${API_URL}/swiper/swipe`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ jogoId, action }),
+  });
+  const result = await response.json();
+  if (!response.ok) parseApiError(result, "Erro ao registrar swipe");
+  return result.data;
+}

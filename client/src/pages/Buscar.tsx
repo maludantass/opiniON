@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import toast from 'react-hot-toast';
@@ -133,6 +134,7 @@ function GameResultCard({
 }
 
 function SwipeCard() {
+  const navigate = useNavigate();
   return (
     <aside className="flex h-[620px] flex-col justify-between overflow-hidden rounded-3xl bg-gradient-to-b from-[#10101E] to-black p-7 shadow-xl">
       <div>
@@ -141,6 +143,7 @@ function SwipeCard() {
         </h2>
         <button
           type="button"
+          onClick={() => navigate("/swipe")}
           aria-label="Ir para o Swipe"
           className="mt-8 rounded-full bg-white px-6 py-3 text-sm font-medium text-gray-900 transition hover:scale-105"
         >

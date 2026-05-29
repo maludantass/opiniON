@@ -13,6 +13,7 @@ import Publicacao from './pages/Publicacao';
 import Buscar from './pages/Buscar';
 import Perfil from './pages/Perfil';
 import NotFound from './pages/NotFound';
+import Swipe from './pages/Swipe';
 
 function App() {
     return (
@@ -30,6 +31,7 @@ function App() {
                 <Route path="/comunidades/:id" element={<PrivateRoute><ComunidadeDetalhe /></PrivateRoute>} />
                 <Route path="/dashboard" element={<Navigate to="/perfil" replace />} />
                 <Route path="/buscar" element={<PrivateRoute><Buscar /></PrivateRoute>} />
+                <Route path="/swipe" element={<PrivateRoute><Swipe /></PrivateRoute>} />
                 <Route path="/publicacao" element={<PrivateRoute><Publicacao /></PrivateRoute>} />
                 <Route path="/perfil" element={<PrivateRoute><Perfil /></PrivateRoute>} />
                 <Route path="*" element={<NotFound />} />
