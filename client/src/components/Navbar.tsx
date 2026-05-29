@@ -50,7 +50,6 @@ export default function Navbar() {
       <div className="flex items-center gap-8">
         <Link to="/" className={navClass("/")}>Home</Link>
         <Link to="/comunidade" className={navClass("/comunidade")}>Comunidade</Link>
-        <Link to="/dashboard" className={navClass("/dashboard")}>Dashboard</Link>
         <Link to="/buscar" className={navClass("/buscar")}>Buscar</Link>
         <Link to="/comunidades" className={navClass("/comunidades")}>Grupos</Link>
         <Link to="/publicacao" className={navClass("/publicacao")}>Publicação</Link>
