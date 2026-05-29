@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { getJogos, getMyRatings, upsertRating, type Jogo, type UserRating } from '../services/api';
 import { HeartIcon, BookmarkIcon, SearchIcon } from '../components/icons';
 import { useAuth } from '../contexts/AuthContext';
+import AddToListaModal from '../components/AddToListaModal';
 
 const CATEGORIES = [
   { id: 1, name: 'Ação', tag: 'Action' },
@@ -50,12 +51,14 @@ function GameResultCard({
   listed,
   onFavorite,
   onList,
+  onAddToList,
 }: {
   game: Jogo;
   favorited: boolean;
   listed: boolean;
   onFavorite: () => void;
   onList: () => void;
+  onAddToList: () => void;
 }) {
   return (
     <div className="flex bg-white rounded-2xl p-4 shadow-sm border border-gray-100 gap-4 transition hover:shadow-md">
@@ -89,7 +92,7 @@ function GameResultCard({
               ))}
             </div>
           )}
-          <div className="flex gap-3">
+          <div className="flex gap-3 ml-auto">
             <button
               type="button"
               onClick={onFavorite}
@@ -101,10 +104,26 @@ function GameResultCard({
             <button
               type="button"
               onClick={onList}
-              aria-label={listed ? "Remover da lista" : "Salvar jogo"}
+              aria-label={listed ? "Remover da fila" : "Adicionar à fila"}
               className={`transition ${listed ? "text-[#6C3BFF]" : "text-gray-400 hover:text-[#6C3BFF]"}`}
             >
               <BookmarkIcon filled={listed} />
+            </button>
+            <button
+              type="button"
+              onClick={onAddToList}
+              aria-label="Adicionar a uma lista"
+              title="Adicionar a uma lista"
+              className="text-gray-400 hover:text-[#6C3BFF] transition"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="8" y1="6" x2="21" y2="6" />
+                <line x1="8" y1="12" x2="21" y2="12" />
+                <line x1="8" y1="18" x2="21" y2="18" />
+                <line x1="3" y1="6" x2="3.01" y2="6" />
+                <line x1="3" y1="12" x2="3.01" y2="12" />
+                <line x1="3" y1="18" x2="3.01" y2="18" />
+              </svg>
             </button>
           </div>
         </div>
@@ -148,6 +167,7 @@ export default function Buscar() {
   const [loading, setLoading] = useState(false);
   const [ratingsMap, setRatingsMap] = useState<Map<number, UserRating>>(new Map());
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [addToListaGame, setAddToListaGame] = useState<Jogo | null>(null);
 
   // Carrega ratings do usuário uma vez ao montar
   useEffect(() => {
@@ -310,6 +330,7 @@ export default function Buscar() {
                         listed={ratingsMap.get(game.id)?.listed ?? false}
                         onFavorite={() => handleToggleFavorite(game)}
                         onList={() => handleToggleListed(game)}
+                        onAddToList={() => setAddToListaGame(game)}
                       />
                     ))}
                   </div>
@@ -353,6 +374,15 @@ export default function Buscar() {
       </main>
 
       <Footer />
+
+      {addToListaGame && token && (
+        <AddToListaModal
+          token={token}
+          jogoId={addToListaGame.id}
+          jogoTitle={addToListaGame.title}
+          onClose={() => setAddToListaGame(null)}
+        />
+      )}
     </div>
   );
 }

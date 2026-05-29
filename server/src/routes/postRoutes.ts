@@ -12,6 +12,8 @@ export class PostRoutes {
 
     private register(): void {
         this.router.get('/feed', authJwtOptional(), postController.getFeedPosts);
+        this.router.get('/mine', authJwt(), postController.getMyPosts);
+        this.router.get('/mine/jogo/:jogoId', authJwt(), postController.getMyPostForGame);
         this.router.get('/', postController.getPosts);
         this.router.get('/:id', postController.getPostById);
         this.router.post('/', authJwt(), postController.createPost);

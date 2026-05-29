@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import Navbar from "../components/Navbar";
-import { createPost, getJogos, upsertRating } from "../services/api";
+import { createPost, getJogos, getMyPostForGame, upsertRating } from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
 
 const CATEGORIAS = [
@@ -136,6 +136,27 @@ function FormPublicacao({ jogo, onBack }: { jogo: Jogo; onBack: () => void }) {
   const [category, setCategory] = useState("");
   const [rating, setRating] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [loadingExisting, setLoadingExisting] = useState(true);
+
+  useEffect(() => {
+    if (!token) { setLoadingExisting(false); return; }
+    getMyPostForGame(token, jogo.id)
+      .then((data) => {
+        if (data?.post) {
+          setIsEditing(true);
+          setOpiniao(data.post.content);
+          if (data.post.category) setCategory(data.post.category);
+        }
+        if (data?.rating) {
+          if (data.rating.rating !== null) setRating(data.rating.rating);
+          setJaJoguei(data.rating.played ?? false);
+          if (data.rating.category && !data.post?.category) setCategory(data.rating.category);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingExisting(false));
+  }, [token, jogo.id]);
 
   async function handlePublicar() {
     if (!opiniao.trim()) {
@@ -165,7 +186,7 @@ function FormPublicacao({ jogo, onBack }: { jogo: Jogo; onBack: () => void }) {
         });
       }
 
-      toast.success("Publicado com sucesso!");
+      toast.success(isEditing ? "Review atualizada!" : "Publicado com sucesso!");
       navigate("/", { state: { publishedGameTitle: jogo.title } });
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Erro ao publicar.");
@@ -180,9 +201,15 @@ function FormPublicacao({ jogo, onBack }: { jogo: Jogo; onBack: () => void }) {
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
-      <h1 className="text-4xl font-extrabold text-white tracking-tight mb-10">
-        Eu joguei
+      <h1 className="text-4xl font-extrabold text-white tracking-tight mb-2">
+        {isEditing ? "Editar review" : "Eu joguei"}
       </h1>
+      {isEditing && (
+        <p className="text-white/70 text-sm mb-8">
+          Você já tem uma review para este jogo. Edite abaixo.
+        </p>
+      )}
+      {!isEditing && <div className="mb-10" />}
 
       <div className="flex flex-col md:flex-row items-start gap-10 w-full max-w-4xl">
         <div className="flex-shrink-0">
@@ -254,7 +281,7 @@ function FormPublicacao({ jogo, onBack }: { jogo: Jogo; onBack: () => void }) {
               disabled={submitting}
               className="rounded-full px-10 py-3 font-semibold text-[#5b2fa0] bg-white hover:bg-white/90 transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-lg text-base"
             >
-              {submitting ? "Publicando..." : "Publicar"}
+              {submitting ? (isEditing ? "Salvando..." : "Publicando...") : (isEditing ? "Salvar alterações" : "Publicar")}
             </button>
           </div>
         </div>
