@@ -1,14 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function Navbar() {
   const [openProfileMenu, setOpenProfileMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
+  const { logout } = useAuth();
 
   function navClass(path: string) {
-    const active = location.pathname === path;
+    const active =
+      path === "/"
+        ? location.pathname === path
+        : location.pathname === path || location.pathname.startsWith(path + "/");
     return active
       ? "bg-purple-700 text-white px-5 py-2 rounded-full text-sm font-medium"
       : "text-gray-700 text-sm hover:text-purple-700 transition-colors";
@@ -29,14 +34,13 @@ export default function Navbar() {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    logout();
     setOpenProfileMenu(false);
     navigate("/login");
   };
 
   return (
-    <nav className="w-full bg-white border-b border-gray-100 px-8 py-3 flex items-center justify-between relative">
+    <nav className="w-full bg-[#EEEEFF] px-8 py-3 flex items-center justify-between relative">
       {/* Logo */}
       <Link to="/">
         <img src="/opinion-roxo.png" alt="OpiniOn" className="h-8 w-auto" />
@@ -46,8 +50,8 @@ export default function Navbar() {
       <div className="flex items-center gap-8">
         <Link to="/" className={navClass("/")}>Home</Link>
         <Link to="/comunidade" className={navClass("/comunidade")}>Comunidade</Link>
-        <Link to="/dashboard" className={navClass("/dashboard")}>Dashboard</Link>
         <Link to="/buscar" className={navClass("/buscar")}>Buscar</Link>
+        <Link to="/comunidades" className={navClass("/comunidades")}>Grupos</Link>
         <Link to="/publicacao" className={navClass("/publicacao")}>Publicação</Link>
       </div>
 

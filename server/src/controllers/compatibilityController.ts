@@ -60,7 +60,7 @@ export const upsertRating = async (req: Request, res: Response): Promise<void> =
         const jogoId = Number(req.body?.jogoId);
         if (!Number.isFinite(jogoId)) { sendError(res, 'jogoId inválido', 400); return; }
 
-        const { rating, favorited, listed } = req.body ?? {};
+        const { rating, favorited, listed, played, category } = req.body ?? {};
 
         if (rating !== undefined && rating !== null) {
             const r = Number(rating);
@@ -70,6 +70,11 @@ export const upsertRating = async (req: Request, res: Response): Promise<void> =
             }
         }
 
+        if (category !== undefined && category !== null && typeof category !== 'string') {
+            sendError(res, 'category deve ser uma string', 400);
+            return;
+        }
+
         const ratingValue: number | null | undefined =
             rating === undefined ? undefined : (rating === null ? null : Number(rating));
 
@@ -77,6 +82,8 @@ export const upsertRating = async (req: Request, res: Response): Promise<void> =
             ...(ratingValue !== undefined && { rating: ratingValue }),
             ...(typeof favorited === 'boolean' && { favorited }),
             ...(typeof listed === 'boolean' && { listed }),
+            ...(typeof played === 'boolean' && { played }),
+            ...(category !== undefined && { category: category ?? null }),
         });
 
         sendSuccess(res, data);

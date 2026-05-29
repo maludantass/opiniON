@@ -1,10 +1,14 @@
 import type { CreationAttributes } from 'sequelize';
 import type { UserRatingAttrs } from '../models/UserRating.js';
 import { UserRating } from '../models/UserRating.js';
+import { Jogo } from '../models/Jogo.js';
 
 export class UserRatingRepository {
     findByUserId(userId: number): Promise<UserRating[]> {
-        return UserRating.findAll({ where: { userId } });
+        return UserRating.findAll({
+            where: { userId },
+            include: [{ model: Jogo, as: 'jogo', attributes: ['id', 'title', 'imageUrl', 'tags', 'releaseYear'] }],
+        });
     }
 
     findByUserAndJogo(userId: number, jogoId: number): Promise<UserRating | null> {
@@ -22,7 +26,7 @@ export class UserRatingRepository {
     async upsert(
         userId: number,
         jogoId: number,
-        values: Partial<Pick<UserRatingAttrs, 'rating' | 'favorited' | 'listed'>>,
+        values: Partial<Pick<UserRatingAttrs, 'rating' | 'favorited' | 'listed' | 'played' | 'category'>>,
     ): Promise<UserRating> {
         const existing = await this.findByUserAndJogo(userId, jogoId);
 
@@ -31,11 +35,11 @@ export class UserRatingRepository {
             return existing;
         }
 
-        return this.create({ userId, jogoId, rating: null, favorited: false, listed: false, ...values });
-    }
-
-    destroyByUserAndJogo(userId: number, jogoId: number): Promise<number> {
-        return UserRating.destroy({ where: { userId, jogoId } });
+        return this.create({
+            userId, jogoId,
+            rating: null, favorited: false, listed: false, played: false, category: null,
+            ...values,
+        });
     }
 
     findJogoIdsByUserId(userId: number): Promise<number[]> {

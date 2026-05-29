@@ -26,6 +26,7 @@ export interface JogoListFilter {
     limit?: number | undefined;
     offset?: number | undefined;
     titleContains?: string | undefined;
+    tag?: string | undefined;
 }
 
 function releaseYearMax(): number {
@@ -237,12 +238,18 @@ export class JogoService {
             ],
         };
 
+        const where: Record<string, unknown> = {};
+
         if (filter.titleContains && filter.titleContains.trim() !== '') {
-            opts.where = {
-                title: {
-                    [Op.iLike]: `%${filter.titleContains.trim()}%`,
-                },
-            };
+            where['title'] = { [Op.iLike]: `%${filter.titleContains.trim()}%` };
+        }
+
+        if (filter.tag && filter.tag.trim() !== '') {
+            where['tags'] = { [Op.contains]: [filter.tag.trim()] };
+        }
+
+        if (Object.keys(where).length > 0) {
+            opts.where = where;
         }
 
         const jogos = await this.jogoRepository.findAll(opts);

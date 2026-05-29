@@ -1,3 +1,4 @@
+import { Op } from 'sequelize';
 import type {
     CreationAttributes,
     DestroyOptions,
@@ -49,6 +50,10 @@ export class UserFollowRepository {
 
     countFollowing(followerId: number): Promise<number> {
         return UserFollow.count({ where: { followerId } });
+    }
+
+    countFollowersSince(followedId: number, since: Date): Promise<number> {
+        return UserFollow.count({ where: { followedId, createdAt: { [Op.gte]: since } } });
     }
 
     async findFollowerUsers(

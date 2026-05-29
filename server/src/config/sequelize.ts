@@ -1,6 +1,31 @@
 import dotenv from 'dotenv';
 import pg from 'pg';
 import { Sequelize } from 'sequelize';
+import { initCommunityModel } from '../models/Community.js';
+import {
+    initCommunityMemberModel,
+    setupCommunityMemberAssociations,
+} from '../models/CommunityMember.js';
+import {
+    initCommunityEventModel,
+    setupCommunityEventAssociations,
+} from '../models/CommunityEvent.js';
+import {
+    initCommunityEventRsvpModel,
+    setupCommunityEventRsvpAssociations,
+} from '../models/CommunityEventRsvp.js';
+import {
+    initCommunityChallengeModel,
+    setupCommunityChallengeAssociations,
+} from '../models/CommunityChallenge.js';
+import {
+    initCommunityChallengeContributionModel,
+    setupCommunityChallengeContributionAssociations,
+} from '../models/CommunityChallengeContribution.js';
+import {
+    initCommunityInviteModel,
+    setupCommunityInviteAssociations,
+} from '../models/CommunityInvite.js';
 import { initJogoModel } from '../models/Jogo.js';
 import { initPostModel } from '../models/Post.js';
 import { initUserModel, setupUserFollowScopes } from '../models/User.js';
@@ -8,7 +33,8 @@ import {
     initUserFollowModel,
     setupUserFollowAssociations,
 } from '../models/UserFollow.js';
-import { initUserRatingModel } from '../models/UserRating.js';
+import { initUserRatingModel, setupUserRatingAssociations } from '../models/UserRating.js';
+import { initPostLikeModel, setupPostLikeAssociations } from '../models/PostLike.js';
 
 dotenv.config();
 
@@ -30,5 +56,22 @@ initUserFollowModel(sequelize);
 initJogoModel(sequelize);
 initPostModel(sequelize);
 initUserRatingModel(sequelize);
+initPostLikeModel(sequelize);
+initCommunityModel(sequelize);
+initCommunityMemberModel(sequelize);
+initCommunityEventModel(sequelize);
+initCommunityEventRsvpModel(sequelize);
+initCommunityChallengeModel(sequelize);
+initCommunityChallengeContributionModel(sequelize);
+initCommunityInviteModel(sequelize);
+
 setupUserFollowAssociations();
 setupUserFollowScopes();
+setupUserRatingAssociations();
+setupPostLikeAssociations();
+setupCommunityMemberAssociations();
+setupCommunityEventAssociations();
+setupCommunityEventRsvpAssociations();
+setupCommunityChallengeAssociations();
+setupCommunityChallengeContributionAssociations();
+setupCommunityInviteAssociations();

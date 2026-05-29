@@ -36,3 +36,26 @@ export function authJwt(): RequestHandler {
         }
     };
 }
+
+export function authJwtOptional(): RequestHandler {
+    return (req, _res: Response, next: NextFunction): void => {
+        const header = req.headers.authorization;
+        if (header?.startsWith('Bearer ')) {
+            try {
+                const token = header.slice('Bearer '.length).trim();
+                const decoded = jwt.verify(token, getJwtSecret()) as jwt.JwtPayload & {
+                    sub?: number | string;
+                    email?: string;
+                };
+                const id = decoded.sub !== undefined ? Number(decoded.sub) : NaN;
+                if (Number.isFinite(id) && decoded.email) {
+                    req.authUserId = id;
+                    req.authUserEmail = decoded.email;
+                }
+            } catch {
+                // token inválido é ignorado no modo opcional
+            }
+        }
+        next();
+    };
+}

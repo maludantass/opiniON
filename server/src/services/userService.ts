@@ -6,6 +6,7 @@ import { AppError } from '../errors/AppError.js';
 import { getJwtExpiresIn, getJwtSecret } from '../config/jwt.js';
 import type { User, UserAttrs } from '../models/User.js';
 import { UserRepository } from '../repositories/userRepository.js';
+import { normalizePagination } from '../utils/pagination.js';
 
 function bcryptRounds(): number {
     const n = parseInt(process.env.BCRYPT_ROUNDS ?? '12', 10);
@@ -34,6 +35,7 @@ export interface UpdateUserInput {
     password?: string;
     username?: string | null;
     avatarUrl?: string | null;
+    bio?: string | null;
 }
 
 function toPublicUser(user: User) {
@@ -42,6 +44,7 @@ function toPublicUser(user: User) {
         email: user.email,
         username: user.username ?? null,
         avatarUrl: user.avatarUrl ?? null,
+        bio: user.bio ?? null,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
     };
@@ -56,6 +59,11 @@ export class UserService {
 
         if (!email || !password) {
             throw new AppError('Email e senha são obrigatórios', 400);
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            throw new AppError('Email inválido', 400);
         }
 
         if (password.length < 6) {
@@ -109,8 +117,7 @@ export class UserService {
     }
 
     async listUsers(filter: UserListFilter) {
-        const limit = Math.min(filter.limit ?? 50, 100);
-        const offset = filter.offset ?? 0;
+        const { limit, offset } = normalizePagination(filter, { defaultLimit: 50, maxLimit: 100 });
         const opts: FindOptions<User> = {
             limit,
             offset,
@@ -146,12 +153,13 @@ export class UserService {
             throw new AppError('Usuário não encontrado', 404);
         }
 
-        const updates: Partial<Pick<UserAttrs, 'email' | 'passwordHash' | 'username' | 'avatarUrl'>> = {};
+        const updates: Partial<Pick<UserAttrs, 'email' | 'passwordHash' | 'username' | 'avatarUrl' | 'bio'>> = {};
 
         if (input.email !== undefined) {
             const normalizedEmail = input.email.trim().toLowerCase();
 
-            if (!normalizedEmail) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!normalizedEmail || !emailRegex.test(normalizedEmail)) {
                 throw new AppError('Email inválido', 400);
             }
 
@@ -185,6 +193,10 @@ export class UserService {
 
         if (input.avatarUrl !== undefined) {
             updates.avatarUrl = input.avatarUrl || null;
+        }
+
+        if (input.bio !== undefined) {
+            updates.bio = input.bio || null;
         }
 
         if (Object.keys(updates).length === 0) {

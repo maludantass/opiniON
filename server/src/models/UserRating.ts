@@ -1,5 +1,6 @@
 import type { Sequelize } from 'sequelize';
 import { DataTypes, Model } from 'sequelize';
+import { Jogo } from './Jogo.js';
 
 export interface UserRatingAttrs {
     id: number;
@@ -8,6 +9,8 @@ export interface UserRatingAttrs {
     rating: number | null;
     favorited: boolean;
     listed: boolean;
+    played: boolean;
+    category: string | null;
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -19,6 +22,8 @@ export class UserRating extends Model<UserRatingAttrs> implements UserRatingAttr
     declare rating: number | null;
     declare favorited: boolean;
     declare listed: boolean;
+    declare played: boolean;
+    declare category: string | null;
     declare readonly createdAt: Date;
     declare readonly updatedAt: Date;
 }
@@ -54,6 +59,16 @@ export function initUserRatingModel(sequelize: Sequelize): void {
                 allowNull: false,
                 defaultValue: false,
             },
+            played: {
+                type: DataTypes.BOOLEAN,
+                allowNull: false,
+                defaultValue: false,
+            },
+            category: {
+                type: DataTypes.STRING(100),
+                allowNull: true,
+                defaultValue: null,
+            },
         },
         {
             sequelize,
@@ -64,4 +79,8 @@ export function initUserRatingModel(sequelize: Sequelize): void {
             ],
         },
     );
+}
+
+export function setupUserRatingAssociations(): void {
+    UserRating.belongsTo(Jogo, { foreignKey: 'jogoId', as: 'jogo' });
 }

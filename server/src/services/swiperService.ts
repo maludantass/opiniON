@@ -98,6 +98,8 @@ export class SwiperService {
             rating: null,
             favorited: action === 'favorite',
             listed: false,
+            played: false,
+            category: null,
         });
 
         return {
