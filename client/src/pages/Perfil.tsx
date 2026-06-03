@@ -22,10 +22,14 @@ import {
   getMyRatings,
   getDashboardStats,
   updateUserProfile,
+  deleteUser,
   getMinhasListas,
   createLista,
   deleteLista,
+  updateLista,
   getMyPosts,
+  updatePost,
+  deletePost,
   type UserCompatibility,
   type UserRating,
   type DashboardStats,
@@ -953,12 +957,206 @@ function CreateListaModal({
   );
 }
 
+function EditPostModal({
+  post,
+  onClose,
+  onSave,
+}: {
+  post: FeedPost;
+  onClose: () => void;
+  onSave: (postId: number, content: string) => Promise<void>;
+}) {
+  const [content, setContent] = useState(post.content);
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!content.trim()) {
+      toast.error("A review não pode estar vazia");
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSave(post.id, content.trim());
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-bold text-gray-800">Editar review</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+          >
+            ×
+          </button>
+        </div>
+        {post.jogo && (
+          <p className="text-xs text-gray-400 mb-3 truncate">
+            {post.jogo.title}
+          </p>
+        )}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            rows={5}
+            placeholder="Escreva sua review..."
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-purple-200"
+            autoFocus
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 border border-gray-200 py-2 rounded-xl text-sm text-gray-600 hover:bg-gray-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={saving || !content.trim()}
+              className="flex-1 bg-[#6C3BFF] text-white rounded-xl py-2 text-sm font-medium hover:bg-[#5b30e0] transition disabled:opacity-60"
+            >
+              {saving ? "Salvando..." : "Salvar"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function EditListaModal({
+  lista,
+  onClose,
+  onSave,
+}: {
+  lista: Lista;
+  onClose: () => void;
+  onSave: (id: number, data: { title: string; description: string; type: "public" | "private" }) => Promise<void>;
+}) {
+  const [title, setTitle] = useState(lista.title);
+  const [description, setDescription] = useState(lista.description ?? "");
+  const [type, setType] = useState<"public" | "private">(lista.type);
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit() {
+    if (!title.trim()) {
+      toast.error("Digite um título para a lista");
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSave(lista.id, { title, description, type });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-base font-bold text-gray-800">Editar lista</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">
+              Título *
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Título da lista"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-200"
+              autoFocus
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">
+              Descrição (opcional)
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              placeholder="Descreva sua lista..."
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-purple-200"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-2 block">
+              Visibilidade
+            </label>
+            <div className="flex gap-2">
+              {(["public", "private"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setType(t)}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium transition ${
+                    type === t
+                      ? "bg-[#6C3BFF] text-white"
+                      : "border border-gray-200 text-gray-600 hover:bg-purple-50"
+                  }`}
+                >
+                  {t === "public" ? "Pública" : "Privada"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={saving || !title.trim()}
+            className="w-full bg-[#6C3BFF] text-white rounded-xl py-2.5 text-sm font-medium hover:bg-[#5b30e0] transition disabled:opacity-60"
+          >
+            {saving ? "Salvando..." : "Salvar alterações"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ListaCard({
   lista,
   onDelete,
+  onEdit,
 }: {
   lista: Lista;
   onDelete: (id: number) => void;
+  onEdit?: (lista: Lista) => void;
 }) {
   const timeAgo = formatTimeAgo(lista.updatedAt);
   const displayJogos = lista.jogos.slice(0, 3);
@@ -1010,13 +1208,24 @@ function ListaCard({
         <span className="flex items-center gap-1 text-xs text-gray-400">
           ○ 0 comentários
         </span>
-        <button
-          type="button"
-          onClick={() => onDelete(lista.id)}
-          className="ml-auto text-[10px] text-red-400 hover:text-red-600 transition"
-        >
-          Remover
-        </button>
+        <div className="ml-auto flex items-center gap-3">
+          {onEdit && (
+            <button
+              type="button"
+              onClick={() => onEdit(lista)}
+              className="text-[10px] text-[#6C3BFF] hover:text-[#5b30e0] transition"
+            >
+              Editar
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => onDelete(lista.id)}
+            className="text-[10px] text-red-400 hover:text-red-600 transition"
+          >
+            Remover
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1032,6 +1241,7 @@ function ListasTab({
   setListas: React.Dispatch<React.SetStateAction<Lista[]>>;
 }) {
   const [showModal, setShowModal] = useState(false);
+  const [editingLista, setEditingLista] = useState<Lista | null>(null);
 
   async function handleCreate(data: {
     title: string;
@@ -1058,6 +1268,21 @@ function ListasTab({
     }
   }
 
+  async function handleEdit(
+    id: number,
+    data: { title: string; description: string; type: "public" | "private" },
+  ) {
+    try {
+      const updated = await updateLista(token, id, data);
+      setListas((prev) => prev.map((l) => (l.id === id ? updated : l)));
+      setEditingLista(null);
+      toast.success("Lista atualizada!");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao atualizar lista");
+      throw e;
+    }
+  }
+
   return (
     <>
       {showModal && (
@@ -1066,10 +1291,22 @@ function ListasTab({
           onCreate={handleCreate}
         />
       )}
+      {editingLista && (
+        <EditListaModal
+          lista={editingLista}
+          onClose={() => setEditingLista(null)}
+          onSave={handleEdit}
+        />
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         {listas.map((lista) => (
-          <ListaCard key={lista.id} lista={lista} onDelete={handleDelete} />
+          <ListaCard
+            key={lista.id}
+            lista={lista}
+            onDelete={handleDelete}
+            onEdit={setEditingLista}
+          />
         ))}
 
         <button
@@ -1101,15 +1338,38 @@ function SalvosTab({
   listas,
   token,
   myPosts,
+  setMyPosts,
 }: {
   ratings: UserRating[];
   listas: Lista[];
   token: string;
   myPosts: FeedPost[];
+  setMyPosts: React.Dispatch<React.SetStateAction<FeedPost[]>>;
 }) {
   const [sub, setSub] = useState<SalvosFilter>("jogos");
   const [visible, setVisible] = useState(6);
   const [addToListaRating, setAddToListaRating] = useState<UserRating | null>(null);
+  const [editingPost, setEditingPost] = useState<FeedPost | null>(null);
+
+  async function handleDeletePost(postId: number) {
+    if (!window.confirm("Excluir esta review?")) return;
+    try {
+      await deletePost(token, postId);
+      setMyPosts((prev) => prev.filter((p) => p.id !== postId));
+      toast.success("Review excluída.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Erro ao excluir");
+    }
+  }
+
+  async function handleUpdatePost(postId: number, content: string) {
+    await updatePost(token, postId, { content });
+    setMyPosts((prev) =>
+      prev.map((p) => (p.id === postId ? { ...p, content } : p)),
+    );
+    setEditingPost(null);
+    toast.success("Review atualizada!");
+  }
 
   const favorited = useMemo(
     () => ratings.filter((r) => r.favorited),
@@ -1130,6 +1390,13 @@ function SalvosTab({
           jogoId={addToListaRating.jogoId}
           jogoTitle={addToListaRating.jogo.title}
           onClose={() => setAddToListaRating(null)}
+        />
+      )}
+      {editingPost && (
+        <EditPostModal
+          post={editingPost}
+          onClose={() => setEditingPost(null)}
+          onSave={handleUpdatePost}
         />
       )}
 
@@ -1299,9 +1566,22 @@ function SalvosTab({
                   <span className="text-[10px] text-gray-400">
                     ♡ {post.likesCount ?? 0} curtidas
                   </span>
-                  <span className="text-[10px] text-gray-400">
-                    {new Date(post.createdAt).toLocaleDateString("pt-BR")}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setEditingPost(post)}
+                      className="text-[10px] text-[#6C3BFF] hover:text-[#5b30e0] transition"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeletePost(post.id)}
+                      className="text-[10px] text-red-400 hover:text-red-600 transition"
+                    >
+                      Excluir
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -1330,6 +1610,101 @@ function SalvosTab({
 
 // ─── Configurações Tab ────────────────────────────────────────────────────────
 
+function SettingsToggle({ checked, onChange, label }: { checked: boolean; onChange: () => void; label?: string }) {
+  return (
+    <button
+      type="button"
+      title={label ?? (checked ? "Desativar" : "Ativar")}
+      onClick={onChange}
+      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
+        checked ? "bg-[#6C3BFF]" : "bg-gray-200"
+      }`}
+    >
+      <span
+        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition duration-200 ${
+          checked ? "translate-x-5" : "translate-x-0"
+        }`}
+      />
+    </button>
+  );
+}
+
+function SettingsAccordion({
+  label,
+  open,
+  onToggle,
+  danger,
+  children,
+}: {
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+  danger?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="border-b border-gray-100 last:border-0">
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`w-full flex items-center justify-between px-5 py-4 text-sm font-medium transition hover:bg-gray-50 ${
+          danger ? "text-red-500" : "text-gray-700"
+        }`}
+      >
+        <span>{label}</span>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className={`transition-transform duration-200 ${open ? "rotate-180" : ""} ${danger ? "text-red-400" : "text-gray-400"}`}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      {open && <div className="px-5 pb-5 pt-1">{children}</div>}
+    </div>
+  );
+}
+
+function SettingsToggleRow({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 last:border-0">
+      <div className="flex-1 min-w-0 pr-4">
+        <p className="text-sm font-medium text-gray-700">{label}</p>
+        <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{description}</p>
+      </div>
+      <SettingsToggle checked={checked} onChange={onChange} label={label} />
+    </div>
+  );
+}
+
+function useLocalToggle(key: string, defaultValue = true) {
+  const [value, setValue] = useState<boolean>(() => {
+    const stored = localStorage.getItem(key);
+    return stored !== null ? stored === "true" : defaultValue;
+  });
+  function toggle() {
+    setValue((v) => {
+      localStorage.setItem(key, String(!v));
+      return !v;
+    });
+  }
+  return [value, toggle] as const;
+}
+
 function ConfiguracoesTab({
   token,
   userId,
@@ -1337,11 +1712,31 @@ function ConfiguracoesTab({
   token: string;
   userId: number;
 }) {
-  const { user, updateUserLocal } = useAuth();
+  const navigate = useNavigate();
+  const { user, updateUserLocal, logout } = useAuth();
+
+  // Dados pessoais
   const [username, setUsername] = useState(user?.username ?? "");
   const [bio, setBio] = useState(user?.bio ?? "");
   const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl ?? "");
   const [saving, setSaving] = useState(false);
+
+  // Accordions
+  const [openSection, setOpenSection] = useState<string | null>(null);
+  function toggleSection(key: string) {
+    setOpenSection((prev) => (prev === key ? null : key));
+  }
+
+  // Notificações (localStorage)
+  const [notifCurtidas, toggleNotifCurtidas] = useLocalToggle("opinion_notif_curtidas");
+  const [notifComentarios, toggleNotifComentarios] = useLocalToggle("opinion_notif_comentarios");
+  const [notifConexoes, toggleNotifConexoes] = useLocalToggle("opinion_notif_conexoes");
+
+  // Privacidade (localStorage)
+  const [perfilPrivado, togglePerfilPrivado] = useLocalToggle("opinion_perfil_privado", false);
+
+  // Excluir conta
+  const [deleting, setDeleting] = useState(false);
 
   async function handleSave() {
     setSaving(true);
@@ -1356,6 +1751,7 @@ function ConfiguracoesTab({
         bio: updated.bio,
         avatarUrl: updated.avatarUrl,
       });
+      setOpenSection(null);
       toast.success("Perfil atualizado!");
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Erro ao salvar");
@@ -1364,57 +1760,176 @@ function ConfiguracoesTab({
     }
   }
 
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    try {
+      await deleteUser(token, userId);
+      logout();
+      navigate("/login");
+      toast.success("Conta excluída.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Erro ao excluir conta");
+      setDeleting(false);
+    }
+  }
+
+  const inputClass =
+    "w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-200";
+
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-6">
-      <h2 className="text-base font-bold text-gray-800 mb-5">
-        Configurações de Perfil
-      </h2>
-      <div className="flex flex-col gap-4 max-w-md">
-        <div>
-          <label className="text-xs font-medium text-gray-500 mb-1 block">
-            Nome de usuário
-          </label>
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="@seu_username"
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-200"
-          />
+    <div className="flex flex-col gap-4 max-w-lg">
+
+      {/* ── Perfil ── */}
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Perfil</p>
         </div>
-        <div>
-          <label className="text-xs font-medium text-gray-500 mb-1 block">
-            Bio
-          </label>
-          <textarea
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            placeholder="Conte um pouco sobre você..."
-            rows={3}
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-200 resize-none"
-          />
-        </div>
-        <div>
-          <label className="text-xs font-medium text-gray-500 mb-1 block">
-            URL do avatar
-          </label>
-          <input
-            type="url"
-            value={avatarUrl}
-            onChange={(e) => setAvatarUrl(e.target.value)}
-            placeholder="https://..."
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-200"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving}
-          className="w-full bg-[#6C3BFF] text-white rounded-xl py-2.5 text-sm font-medium hover:bg-[#5b30e0] transition disabled:opacity-60"
+
+        <SettingsAccordion
+          label="Dados pessoais"
+          open={openSection === "dados"}
+          onToggle={() => toggleSection("dados")}
         >
-          {saving ? "Salvando..." : "Salvar alterações"}
-        </button>
+          <div className="flex flex-col gap-3">
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Nome de usuário</label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="@seu_username"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Bio</label>
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                placeholder="Conte um pouco sobre você..."
+                rows={3}
+                className={`${inputClass} resize-none`}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">URL do avatar</label>
+              <input
+                type="url"
+                value={avatarUrl}
+                onChange={(e) => setAvatarUrl(e.target.value)}
+                placeholder="https://..."
+                className={inputClass}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="w-full bg-[#6C3BFF] text-white rounded-xl py-2.5 text-sm font-medium hover:bg-[#5b30e0] transition disabled:opacity-60"
+            >
+              {saving ? "Salvando..." : "Salvar alterações"}
+            </button>
+          </div>
+        </SettingsAccordion>
+
+        <div className="flex items-center justify-between px-5 py-4">
+          <div>
+            <p className="text-sm font-medium text-gray-700">Privacidade</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {perfilPrivado ? "Perfil privado" : "Perfil público"}
+            </p>
+          </div>
+          <SettingsToggle checked={perfilPrivado} onChange={togglePerfilPrivado} label="Alternar privacidade do perfil" />
+        </div>
       </div>
+
+      {/* ── Notificações ── */}
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Notificações</p>
+        </div>
+        <SettingsToggleRow
+          label="Curtidas"
+          description="Seja notificado de curtidas nos seus posts"
+          checked={notifCurtidas}
+          onChange={toggleNotifCurtidas}
+        />
+        <SettingsToggleRow
+          label="Comentários"
+          description="Seja notificado de comentários nos seus reviews"
+          checked={notifComentarios}
+          onChange={toggleNotifComentarios}
+        />
+        <SettingsToggleRow
+          label="Novas conexões"
+          description="Seja notificado quando alguém novo te seguir"
+          checked={notifConexoes}
+          onChange={toggleNotifConexoes}
+        />
+      </div>
+
+      {/* ── Conta ── */}
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Conta</p>
+        </div>
+
+        <SettingsAccordion
+          label="Alterar e-mail"
+          open={openSection === "email"}
+          onToggle={() => toggleSection("email")}
+        >
+          <p className="text-sm text-gray-400 py-2">Em breve — esta funcionalidade estará disponível em uma próxima versão.</p>
+        </SettingsAccordion>
+
+        <SettingsAccordion
+          label="Alterar senha"
+          open={openSection === "senha"}
+          onToggle={() => toggleSection("senha")}
+        >
+          <p className="text-sm text-gray-400 py-2">Em breve — esta funcionalidade estará disponível em uma próxima versão.</p>
+        </SettingsAccordion>
+
+        <SettingsAccordion
+          label="Adicionar telefone"
+          open={openSection === "telefone"}
+          onToggle={() => toggleSection("telefone")}
+        >
+          <p className="text-sm text-gray-400 py-2">Em breve — esta funcionalidade estará disponível em uma próxima versão.</p>
+        </SettingsAccordion>
+
+        <SettingsAccordion
+          label="Excluir conta"
+          open={openSection === "excluir"}
+          onToggle={() => toggleSection("excluir")}
+          danger
+        >
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex flex-col gap-3">
+            <p className="text-sm font-semibold text-red-700">Esta ação não pode ser desfeita.</p>
+            <p className="text-xs text-red-500 leading-relaxed">
+              Todos os seus dados, posts e avaliações serão permanentemente removidos.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setOpenSection(null)}
+                className="flex-1 border border-gray-200 py-2 rounded-xl text-sm text-gray-600 hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={deleting}
+                className="flex-1 bg-red-500 text-white py-2 rounded-xl text-sm font-medium hover:bg-red-600 disabled:opacity-50 transition"
+              >
+                {deleting ? "Excluindo..." : "Confirmar exclusão"}
+              </button>
+            </div>
+          </div>
+        </SettingsAccordion>
+      </div>
+
     </div>
   );
 }
@@ -1477,7 +1992,7 @@ export default function Perfil() {
                 <ListasTab token={token} listas={listas} setListas={setListas} />
               )}
               {activeTab === "salvos" && token && (
-                <SalvosTab ratings={ratings} listas={listas} token={token} myPosts={myPosts} />
+                <SalvosTab ratings={ratings} listas={listas} token={token} myPosts={myPosts} setMyPosts={setMyPosts} />
               )}
               {activeTab === "configuracoes" && token && user && (
                 <ConfiguracoesTab token={token} userId={user.id} />

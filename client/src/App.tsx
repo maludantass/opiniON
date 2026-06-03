@@ -14,6 +14,7 @@ import Buscar from './pages/Buscar';
 import Perfil from './pages/Perfil';
 import NotFound from './pages/NotFound';
 import Swipe from './pages/Swipe';
+import PostDetalhe from './pages/PostDetalhe';
 
 function App() {
     return (
@@ -34,6 +35,7 @@ function App() {
                 <Route path="/swipe" element={<PrivateRoute><Swipe /></PrivateRoute>} />
                 <Route path="/publicacao" element={<PrivateRoute><Publicacao /></PrivateRoute>} />
                 <Route path="/perfil" element={<PrivateRoute><Perfil /></PrivateRoute>} />
+                <Route path="/posts/:id" element={<PostDetalhe />} />
                 <Route path="*" element={<NotFound />} />
             </Routes>
         </Router>

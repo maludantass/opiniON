@@ -13,8 +13,10 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   getSwiperNext,
   postSwiperSwipe,
+  getSwiperFavorites,
   type Jogo,
   type SwipeAction,
+  type SwiperFavorite,
 } from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -178,10 +180,50 @@ function SwipeGameCard({
   );
 }
 
-function LandingView({ onStart }: { onStart: () => void }) {
+function FavoritesGrid({ favorites }: { favorites: SwiperFavorite[] }) {
+  if (favorites.length === 0) return null;
+  return (
+    <div className="w-full max-w-2xl mt-10 px-2">
+      <p className="text-white/70 text-sm font-semibold mb-3 text-left">
+        Seus favoritos ({favorites.length})
+      </p>
+      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+        {favorites.map((jogo) => (
+          <div key={jogo.id} className="flex-shrink-0 w-24 flex flex-col items-center gap-1.5">
+            {jogo.imageUrl ? (
+              <img
+                src={jogo.imageUrl}
+                alt={jogo.title}
+                className="w-24 h-32 rounded-xl object-cover shadow-lg"
+              />
+            ) : (
+              <div className="w-24 h-32 rounded-xl bg-white/20 flex items-center justify-center text-2xl shadow-lg">
+                🎮
+              </div>
+            )}
+            <p className="text-white/80 text-[10px] font-medium text-center line-clamp-2 leading-tight w-full">
+              {jogo.title}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LandingView({ onStart, token }: { onStart: () => void; token: string | null }) {
+  const [favorites, setFavorites] = useState<SwiperFavorite[]>([]);
+
+  useEffect(() => {
+    if (!token) return;
+    getSwiperFavorites(token, { limit: 20 })
+      .then((res) => setFavorites(res.items))
+      .catch(() => {});
+  }, [token]);
+
   return (
     <SwiperBackground>
-      <div className="relative flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
+      <div className="relative flex flex-1 flex-col items-center justify-start px-6 py-16 text-center overflow-y-auto">
         <h1 className="max-w-2xl text-3xl font-bold leading-tight text-white sm:text-4xl md:text-5xl">
           Pronto pra descobrir que obras combinam com você?
         </h1>
@@ -193,9 +235,23 @@ function LandingView({ onStart }: { onStart: () => void }) {
         >
           Iniciar Swiper
         </button>
+
+        <FavoritesGrid favorites={favorites} />
       </div>
     </SwiperBackground>
   );
+}
+
+function FinishedFavorites({ token }: { token: string }) {
+  const [favorites, setFavorites] = useState<SwiperFavorite[]>([]);
+
+  useEffect(() => {
+    getSwiperFavorites(token, { limit: 20 })
+      .then((res) => setFavorites(res.items))
+      .catch(() => {});
+  }, [token]);
+
+  return <FavoritesGrid favorites={favorites} />;
 }
 
 export default function Swipe() {
@@ -267,7 +323,7 @@ export default function Swipe() {
     <div className="flex min-h-screen flex-col bg-[#EEEEFF]">
       <Navbar />
 
-      {phase === 'landing' && <LandingView onStart={handleStart} />}
+      {phase === 'landing' && <LandingView onStart={handleStart} token={token} />}
 
       {phase === 'playing' && (
         <SwiperBackground>
@@ -345,7 +401,7 @@ export default function Swipe() {
 
       {phase === 'finished' && (
         <SwiperBackground>
-          <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
+          <div className="flex flex-1 flex-col items-center justify-start overflow-y-auto px-6 py-16 text-center">
             <h2 className="text-3xl font-bold text-white">Você viu todos os jogos!</h2>
             <p className="mt-4 max-w-md text-white/80">
               Volte mais tarde para descobrir novos títulos ou explore a comunidade.
@@ -366,6 +422,7 @@ export default function Swipe() {
                 Tentar novamente
               </button>
             </div>
+            {token && <FinishedFavorites token={token} />}
           </div>
         </SwiperBackground>
       )}

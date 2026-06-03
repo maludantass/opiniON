@@ -87,12 +87,16 @@ export function ReviewCard({
   onFavorite?: () => void;
   onList?: () => void;
 }) {
+  const navigate = useNavigate();
   const username = post.user?.username ?? post.user?.email.split('@')[0] ?? 'Usuário';
   const handle = `@${post.user?.username ?? post.user?.email.split('@')[0] ?? 'usuario'}`;
   const initials = username.slice(0, 2).toUpperCase();
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition hover:scale-[1.01] hover:shadow-md">
+    <div
+      className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition hover:scale-[1.01] hover:shadow-md cursor-pointer"
+      onClick={() => navigate(`/posts/${post.id}`)}
+    >
       <div className="mb-4 flex items-center gap-3">
         {post.user?.avatarUrl ? (
           <img src={post.user.avatarUrl} alt={username} className="h-9 w-9 rounded-full object-cover shadow-sm" />
@@ -133,7 +137,7 @@ export function ReviewCard({
       <p className="mb-1 text-sm font-semibold text-gray-900">Review</p>
       <p className="text-xs leading-relaxed text-gray-500 line-clamp-3">{post.content}</p>
 
-      <div className="mt-4 flex gap-5">
+      <div className="mt-4 flex gap-5" onClick={(e) => e.stopPropagation()}>
         {onFavorite ? (
           <button
             type="button"

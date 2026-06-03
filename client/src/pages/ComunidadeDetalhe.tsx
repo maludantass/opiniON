@@ -25,6 +25,8 @@ import {
   getPendingRequests,
   approveRequest,
   rejectRequest,
+  banMember,
+  regenerateInviteCode,
   type Community,
   type CommunityPost,
   type CommunityEvent,
@@ -112,6 +114,7 @@ export default function ComunidadeDetalhe() {
 
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [showInviteCode, setShowInviteCode] = useState(false);
+  const [regeneratingCode, setRegeneratingCode] = useState(false);
 
   // Invite followers modal
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -412,6 +415,32 @@ export default function ComunidadeDetalhe() {
       setShowInviteCode(true);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Erro");
+    }
+  };
+
+  const handleBanMember = async (userId: number, username: string | null) => {
+    if (!token || !window.confirm(`Banir ${username ?? "este usuário"} da comunidade?`)) return;
+    try {
+      await banMember(token, communityId, userId);
+      setMembers((prev) => prev.filter((m) => m.userId !== userId));
+      setCommunity((prev) => prev ? { ...prev, memberCount: Math.max(0, prev.memberCount - 1) } : null);
+      toast.success("Membro banido.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Erro ao banir membro");
+    }
+  };
+
+  const handleRegenerateCode = async () => {
+    if (!token || !window.confirm("Isso vai invalidar o código atual. Continuar?")) return;
+    setRegeneratingCode(true);
+    try {
+      const newCode = await regenerateInviteCode(token, communityId);
+      setInviteCode(newCode);
+      toast.success("Código regenerado!");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Erro ao regenerar código");
+    } finally {
+      setRegeneratingCode(false);
     }
   };
 
@@ -867,6 +896,15 @@ export default function ComunidadeDetalhe() {
                     {m.isOwner && (
                       <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">Moderador</span>
                     )}
+                    {isOwner && !m.isOwner && (
+                      <button
+                        type="button"
+                        onClick={() => handleBanMember(m.userId, m.user?.username ?? null)}
+                        className="text-xs text-red-400 hover:text-red-600 transition-colors px-2 py-1 rounded-lg hover:bg-red-50"
+                      >
+                        Banir
+                      </button>
+                    )}
                   </div>
                 ))}
                 {members.length === 0 && (
@@ -1038,6 +1076,14 @@ export default function ComunidadeDetalhe() {
               className="w-full bg-purple-600 text-white py-2 rounded-xl text-sm font-medium hover:bg-purple-700 mb-2 transition-colors"
             >
               Copiar código
+            </button>
+            <button
+              type="button"
+              onClick={handleRegenerateCode}
+              disabled={regeneratingCode}
+              className="w-full border border-gray-200 py-2 rounded-xl text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50 mb-2"
+            >
+              {regeneratingCode ? "Regenerando..." : "Regenerar código"}
             </button>
             <button
               type="button"

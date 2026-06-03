@@ -561,6 +561,25 @@ export async function getCommunityMembers(id: number, token?: string): Promise<C
   return result.data;
 }
 
+export async function banMember(token: string, communityId: number, userId: number): Promise<void> {
+  const response = await fetch(`${API_URL}/communities/${communityId}/members/${userId}/ban`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  const result = await response.json();
+  if (!response.ok) parseApiError(result, "Erro ao banir membro");
+}
+
+export async function regenerateInviteCode(token: string, communityId: number): Promise<string> {
+  const response = await fetch(`${API_URL}/communities/${communityId}/invite-code/regenerate`, {
+    method: "POST",
+    headers: authHeaders(token),
+  });
+  const result = await response.json();
+  if (!response.ok) parseApiError(result, "Erro ao regenerar código");
+  return result.data.inviteCode;
+}
+
 export async function sendCommunityInvite(token: string, communityId: number, inviteeId: number): Promise<void> {
   const response = await fetch(`${API_URL}/communities/${communityId}/invite`, {
     method: "POST",
@@ -762,6 +781,29 @@ export async function unlikePost(token: string, postId: number): Promise<void> {
   if (!response.ok) parseApiError(result, "Erro ao descurtir post");
 }
 
+export async function updatePost(
+  token: string,
+  postId: number,
+  payload: { content: string },
+): Promise<void> {
+  const response = await fetch(`${API_URL}/posts/${postId}`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  });
+  const result = await response.json();
+  if (!response.ok) parseApiError(result, "Erro ao editar publicação");
+}
+
+export async function deletePost(token: string, postId: number): Promise<void> {
+  const response = await fetch(`${API_URL}/posts/${postId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  const result = await response.json();
+  if (!response.ok) parseApiError(result, "Erro ao excluir publicação");
+}
+
 export async function approveRequest(
   token: string,
   communityId: number,
@@ -836,6 +878,21 @@ export async function deleteLista(token: string, id: number): Promise<void> {
   }
 }
 
+export async function updateLista(
+  token: string,
+  id: number,
+  payload: { title?: string; description?: string | null; type?: "public" | "private" },
+): Promise<Lista> {
+  const response = await fetch(`${API_URL}/listas/${id}`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Erro ao atualizar lista");
+  return result.data;
+}
+
 export async function addJogoToLista(token: string, listaId: number, jogoId: number): Promise<Lista> {
   const response = await fetch(`${API_URL}/listas/${listaId}/jogos`, {
     method: "POST",
@@ -908,5 +965,41 @@ export async function postSwiperSwipe(
   });
   const result = await response.json();
   if (!response.ok) parseApiError(result, "Erro ao registrar swipe");
+  return result.data;
+}
+
+export interface SwiperFavorite extends Jogo {
+  favoritedAt: string;
+}
+
+export async function getSwiperFavorites(
+  token: string,
+  params?: { limit?: number; offset?: number },
+): Promise<{ items: SwiperFavorite[]; total: number }> {
+  const query = new URLSearchParams();
+  if (params?.limit !== undefined) query.set("limit", String(params.limit));
+  if (params?.offset !== undefined) query.set("offset", String(params.offset));
+  const qs = query.toString();
+  const response = await fetch(`${API_URL}/swiper/favorites${qs ? `?${qs}` : ""}`, {
+    headers: authHeaders(token),
+  });
+  const result = await response.json();
+  if (!response.ok) parseApiError(result, "Erro ao buscar favoritos do swipe");
+  return result.data;
+}
+
+export async function deleteUser(token: string, userId: number): Promise<void> {
+  const response = await fetch(`${API_URL}/users/${userId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  const result = await response.json();
+  if (!response.ok) parseApiError(result, "Erro ao excluir conta");
+}
+
+export async function getPostById(id: number): Promise<FeedPost> {
+  const response = await fetch(`${API_URL}/posts/${id}`);
+  const result = await response.json();
+  if (!response.ok) parseApiError(result, "Post não encontrado");
   return result.data;
 }
