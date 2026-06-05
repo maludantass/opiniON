@@ -21,6 +21,28 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
     }
 };
 
+export const getFollowingTrending = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const authId = requireAuthUserId(req.authUserId);
+        const limit = Math.min(Number(req.query['limit'] ?? 3), 10);
+        const data = await postService.listFollowingTrending(authId, Number.isFinite(limit) ? limit : 3);
+        sendSuccess(res, data);
+    } catch (e) {
+        handleError(res, e);
+    }
+};
+
+export const getFollowingFeed = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const authId = requireAuthUserId(req.authUserId);
+        const limit = Math.min(Number(req.query['limit'] ?? 20), 50);
+        const data = await postService.listFollowingFeed(authId, Number.isFinite(limit) ? limit : 20);
+        sendSuccess(res, data);
+    } catch (e) {
+        handleError(res, e);
+    }
+};
+
 export const getFeedPosts = async (req: Request, res: Response): Promise<void> => {
     try {
         const limit = Math.min(Number(req.query['limit'] ?? 6), 20);
@@ -59,7 +81,8 @@ export const getPosts = async (req: Request, res: Response): Promise<void> => {
 export const getPostById = async (req: Request, res: Response): Promise<void> => {
     try {
         const id = parseRouteId(req.params['id']);
-        const data = await postService.getPostById(id);
+        const requestingUserId = req.authUserId ? Number(req.authUserId) : undefined;
+        const data = await postService.getPostById(id, requestingUserId);
         sendSuccess(res, data);
     } catch (e) {
         handleError(res, e);

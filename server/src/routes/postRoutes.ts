@@ -12,10 +12,12 @@ export class PostRoutes {
 
     private register(): void {
         this.router.get('/feed', authJwtOptional(), postController.getFeedPosts);
+        this.router.get('/following', authJwt(), postController.getFollowingFeed);
+        this.router.get('/following/trending', authJwt(), postController.getFollowingTrending);
         this.router.get('/mine', authJwt(), postController.getMyPosts);
         this.router.get('/mine/jogo/:jogoId', authJwt(), postController.getMyPostForGame);
         this.router.get('/', postController.getPosts);
-        this.router.get('/:id', postController.getPostById);
+        this.router.get('/:id', authJwtOptional(), postController.getPostById);
         this.router.post('/', authJwt(), postController.createPost);
         this.router.put('/:id', authJwt(), postController.updatePost);
         this.router.delete('/:id', authJwt(), postController.deletePost);

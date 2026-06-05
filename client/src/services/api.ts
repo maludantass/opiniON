@@ -997,6 +997,40 @@ export async function deleteUser(token: string, userId: number): Promise<void> {
   if (!response.ok) parseApiError(result, "Erro ao excluir conta");
 }
 
+export interface TrendingGame {
+  id: number;
+  title: string;
+  imageUrl: string | null;
+  postCount: number;
+}
+
+export async function getFollowingTrending(token: string, limit = 3): Promise<TrendingGame[]> {
+  const response = await fetch(`${API_URL}/posts/following/trending?limit=${limit}`, {
+    headers: authHeaders(token),
+  });
+  const result = await response.json();
+  if (!response.ok) parseApiError(result, "Erro ao carregar trending");
+  return result.data;
+}
+
+export async function getMyFollowing(token: string, userId: number): Promise<PublicUser[]> {
+  const response = await fetch(`${API_URL}/users/${userId}/following?limit=10`, {
+    headers: authHeaders(token),
+  });
+  const result = await response.json();
+  if (!response.ok) parseApiError(result, "Erro ao carregar amigos");
+  return result.data?.items ?? [];
+}
+
+export async function getFollowingFeed(token: string, limit = 20): Promise<FeedPost[]> {
+  const response = await fetch(`${API_URL}/posts/following?limit=${limit}`, {
+    headers: authHeaders(token),
+  });
+  const result = await response.json();
+  if (!response.ok) parseApiError(result, "Erro ao carregar feed de seguindo");
+  return result.data;
+}
+
 export async function getPostById(id: number): Promise<FeedPost> {
   const response = await fetch(`${API_URL}/posts/${id}`);
   const result = await response.json();

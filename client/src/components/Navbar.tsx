@@ -53,6 +53,7 @@ export default function Navbar() {
         <Link to="/buscar" className={navClass("/buscar")}>Buscar</Link>
         <Link to="/comunidades" className={navClass("/comunidades")}>Grupos</Link>
         <Link to="/publicacao" className={navClass("/publicacao")}>Publicação</Link>
+        <Link to="/seguindo" className={navClass("/seguindo")}>Seguindo</Link>
       </div>
 
       {/* Profile dropdown */}

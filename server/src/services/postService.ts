@@ -1,7 +1,7 @@
 import type { FindOptions } from 'sequelize';
 import { Op } from 'sequelize';
 import { AppError } from '../errors/AppError.js';
-import type { Post, PostAttrs } from '../models/Post.js';
+import { Post, type PostAttrs } from '../models/Post.js';
 import { PostRepository } from '../repositories/postRepository.js';
 import { JogoRepository } from '../repositories/jogoRepository.js';
 import { UserRepository } from '../repositories/userRepository.js';
@@ -10,6 +10,7 @@ import { normalizePagination } from '../utils/pagination.js';
 import { PostLikeRepository } from '../repositories/postLikeRepository.js';
 import { PostLike } from '../models/PostLike.js';
 import { sequelize } from '../config/sequelize.js';
+import { UserFollowRepository } from '../repositories/userFollowRepository.js';
 
 export type PostMediaType = 'image' | 'video';
 
@@ -112,7 +113,89 @@ export class PostService {
         private readonly userRepository = new UserRepository(),
         private readonly jogoRepository = new JogoRepository(),
         private readonly postLikeRepository = new PostLikeRepository(),
+        private readonly userFollowRepository = new UserFollowRepository(),
     ) {}
+
+    private async enrichPosts(posts: Post[], requestingUserId?: number) {
+        if (posts.length === 0) return [];
+
+        const postIds = posts.map((p) => p.id);
+        const userIds = [...new Set(posts.map((p) => p.userId))];
+        const jogoIds = posts.map((p) => p.jogoId).filter((id): id is number => id !== null);
+
+        const [users, jogos, ratings, likesCountGroup, userLikes] = await Promise.all([
+            userIds.length > 0
+                ? this.userRepository.findAll({
+                    where: { id: { [Op.in]: userIds } },
+                    attributes: ['id', 'email', 'username', 'avatarUrl'],
+                })
+                : Promise.resolve([]),
+            jogoIds.length > 0
+                ? this.jogoRepository.findAll({
+                    where: { id: { [Op.in]: jogoIds } },
+                    attributes: ['id', 'title', 'imageUrl', 'tags'],
+                })
+                : Promise.resolve([]),
+            userIds.length > 0 && jogoIds.length > 0
+                ? UserRating.findAll({
+                    where: {
+                        userId: { [Op.in]: userIds },
+                        jogoId: { [Op.in]: jogoIds },
+                    },
+                    attributes: ['userId', 'jogoId', 'rating'],
+                })
+                : Promise.resolve([]),
+            postIds.length > 0
+                ? PostLike.findAll({
+                    where: { postId: { [Op.in]: postIds } },
+                    attributes: ['postId', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
+                    group: ['postId'],
+                    raw: true,
+                }) as unknown as Promise<{ postId: number; count: string | number }[]>
+                : Promise.resolve([]),
+            requestingUserId && postIds.length > 0
+                ? PostLike.findAll({
+                    where: { postId: { [Op.in]: postIds }, userId: requestingUserId },
+                    attributes: ['postId'],
+                    raw: true,
+                })
+                : Promise.resolve([]),
+        ]);
+
+        const userMap = new Map(users.map((u) => [u.id, u]));
+        const jogoMap = new Map(jogos.map((j) => [j.id, j]));
+        const ratingMap = new Map(ratings.map((r) => [`${r.userId}-${r.jogoId}`, r.rating]));
+
+        const likesMap = new Map<number, number>();
+        (likesCountGroup as any[]).forEach((g) => likesMap.set(g.postId, parseInt(String(g.count), 10)));
+
+        const likedSet = new Set<number>();
+        if (userLikes) {
+            (userLikes as any[]).forEach((l: any) => likedSet.add(l.postId));
+        }
+
+        return posts.map((p) => {
+            const user = userMap.get(p.userId);
+            const jogo = p.jogoId ? jogoMap.get(p.jogoId) ?? null : null;
+            const rating = p.jogoId ? ratingMap.get(`${p.userId}-${p.jogoId}`) ?? null : null;
+            const tagsFinais: string[] = p.category ? [p.category] : [];
+
+            return {
+                id: p.id,
+                content: p.content,
+                createdAt: p.createdAt,
+                rating,
+                user: user
+                    ? { id: user.id, username: user.username ?? null, avatarUrl: user.avatarUrl ?? null, email: user.email }
+                    : null,
+                jogo: jogo
+                    ? { id: jogo.id, title: jogo.title, imageUrl: jogo.imageUrl, tags: tagsFinais }
+                    : null,
+                likesCount: likesMap.get(p.id) ?? 0,
+                liked: likedSet.has(p.id),
+            };
+        });
+    }
 
     async createPost(userId: number, input: CreatePostInput) {
         const media = normalizeMedia(input.mediaUrl, input.mediaType);
@@ -166,10 +249,11 @@ export class PostService {
         };
     }
 
-    async getPostById(id: number) {
+    async getPostById(id: number, requestingUserId?: number) {
         const post = await this.postRepository.findById(id);
         if (!post) throw new AppError('Post não encontrado', 404);
-        return toPublicPost(post);
+        const enriched = await this.enrichPosts([post], requestingUserId);
+        return enriched[0]!;
     }
 
     async listPosts(filter: PostListFilter) {
@@ -220,90 +304,65 @@ export class PostService {
             limit,
             order: [['createdAt', 'DESC']],
         });
+        return this.enrichPosts(posts, requestingUserId);
+    }
 
-        const postIds = posts.map((p) => p.id);
-        const userIds = [...new Set(posts.map((p) => p.userId))];
-        const jogoIds = posts.map((p) => p.jogoId).filter((id): id is number => id !== null);
+    async listFollowingTrending(followerId: number, limit = 3) {
+        const followedUsers = await this.userFollowRepository.findFollowingUsers(followerId, 1000, 0);
+        if (followedUsers.length === 0) return [];
 
-        const [users, jogos, ratings, likesCountGroup, userLikes] = await Promise.all([
-            userIds.length > 0
-                ? this.userRepository.findAll({
-                    where: { id: { [Op.in]: userIds } },
-                    attributes: ['id', 'email', 'username', 'avatarUrl'],
-                })
-                : Promise.resolve([]),
-            jogoIds.length > 0
-                ? this.jogoRepository.findAll({
-                    where: { id: { [Op.in]: jogoIds } },
-                    attributes: ['id', 'title', 'imageUrl', 'tags'],
-                })
-                : Promise.resolve([]),
-            userIds.length > 0 && jogoIds.length > 0
-                ? UserRating.findAll({
-                    where: {
-                        userId: { [Op.in]: userIds },
-                        jogoId: { [Op.in]: jogoIds },
-                    },
-                    attributes: ['userId', 'jogoId', 'rating'],
-                })
-                : Promise.resolve([]),
-            postIds.length > 0
-                ? PostLike.findAll({
-                    where: { postId: { [Op.in]: postIds } },
-                    attributes: ['postId', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
-                    group: ['postId'],
-                    raw: true,
-                }) as unknown as Promise<{ postId: number; count: string | number }[]>
-                : Promise.resolve([]),
-            requestingUserId && postIds.length > 0
-                ? PostLike.findAll({
-                    where: {
-                        postId: { [Op.in]: postIds },
-                        userId: requestingUserId,
-                    },
-                    attributes: ['postId'],
-                    raw: true,
-                })
-                : Promise.resolve([]),
-        ]);
+        const followedIds = followedUsers.map((u) => u.id);
 
-        const userMap = new Map(users.map((u) => [u.id, u]));
+        const grouped = await Post.findAll({
+            where: {
+                userId: { [Op.in]: followedIds },
+                jogoId: { [Op.ne]: null },
+            } as any,
+            attributes: [
+                'jogoId',
+                [sequelize.fn('COUNT', sequelize.col('Post.id')), 'postCount'],
+            ],
+            group: ['jogoId'],
+            order: [[sequelize.fn('COUNT', sequelize.col('Post.id')), 'DESC']],
+            limit: Math.min(limit, 10),
+            raw: true,
+        }) as unknown as { jogoId: number; postCount: string }[];
+
+        if (grouped.length === 0) return [];
+
+        const jogoIds = grouped.map((g) => g.jogoId);
+        const jogos = await this.jogoRepository.findAll({
+            where: { id: { [Op.in]: jogoIds } },
+            attributes: ['id', 'title', 'imageUrl'],
+        });
+
         const jogoMap = new Map(jogos.map((j) => [j.id, j]));
-        const ratingMap = new Map(ratings.map((r) => [`${r.userId}-${r.jogoId}`, r.rating]));
 
-        const likesMap = new Map<number, number>();
-        likesCountGroup.forEach((g: any) => {
-            likesMap.set(g.postId, parseInt(String(g.count), 10));
+        return grouped
+            .map((g) => {
+                const jogo = jogoMap.get(g.jogoId);
+                if (!jogo) return null;
+                return {
+                    id: jogo.id,
+                    title: jogo.title,
+                    imageUrl: jogo.imageUrl,
+                    postCount: parseInt(String(g.postCount), 10),
+                };
+            })
+            .filter((g): g is NonNullable<typeof g> => g !== null);
+    }
+
+    async listFollowingFeed(followerId: number, limit = 20) {
+        const followedUsers = await this.userFollowRepository.findFollowingUsers(followerId, 1000, 0);
+        if (followedUsers.length === 0) return [];
+
+        const followedIds = followedUsers.map((u) => u.id);
+        const posts = await this.postRepository.findAll({
+            where: { userId: { [Op.in]: followedIds } } as any,
+            limit: Math.min(limit, 50),
+            order: [['createdAt', 'DESC']],
         });
-
-        const likedSet = new Set<number>();
-        if (userLikes) {
-            userLikes.forEach((l: any) => {
-                likedSet.add(l.postId);
-            });
-        }
-
-        return posts.map((p) => {
-            const user = userMap.get(p.userId);
-            const jogo = p.jogoId ? jogoMap.get(p.jogoId) ?? null : null;
-            const rating = p.jogoId ? ratingMap.get(`${p.userId}-${p.jogoId}`) ?? null : null;
-            const tagsFinais: string[] = p.category ? [p.category] : [];
-
-            return {
-                id: p.id,
-                content: p.content,
-                createdAt: p.createdAt,
-                rating,
-                user: user
-                    ? { id: user.id, username: user.username ?? null, avatarUrl: user.avatarUrl ?? null, email: user.email }
-                    : null,
-                jogo: jogo
-                    ? { id: jogo.id, title: jogo.title, imageUrl: jogo.imageUrl, tags: tagsFinais }
-                    : null,
-                likesCount: likesMap.get(p.id) ?? 0,
-                liked: likedSet.has(p.id),
-            };
-        });
+        return this.enrichPosts(posts, followerId);
     }
 
     async listUserPosts(userId: number, requestingUserId?: number) {
