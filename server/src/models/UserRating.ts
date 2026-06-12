@@ -65,7 +65,7 @@ export function initUserRatingModel(sequelize: Sequelize): void {
                 defaultValue: false,
             },
             category: {
-                type: DataTypes.STRING(100),
+                type: DataTypes.STRING(255),
                 allowNull: true,
                 defaultValue: null,
             },

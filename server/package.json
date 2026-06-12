@@ -11,6 +11,7 @@
     "filter:games": "tsx src/scripts/filterGamesCsv.ts",
     "seed:reviews": "tsx src/scripts/seedReviews.ts",
     "seed:dev": "tsx src/scripts/seedDev.ts",
+    "seed:feed": "tsx src/scripts/seedFeed.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as postController from '../controllers/postController.js';
+import * as commentController from '../controllers/commentController.js';
 import { authJwt, authJwtOptional } from '../middleware/authJwt.js';
 
 export class PostRoutes {
@@ -23,5 +24,8 @@ export class PostRoutes {
         this.router.delete('/:id', authJwt(), postController.deletePost);
         this.router.post('/:id/like', authJwt(), postController.likePost);
         this.router.delete('/:id/like', authJwt(), postController.unlikePost);
+        this.router.get('/:id/comments', commentController.getPostComments);
+        this.router.post('/:id/comments', authJwt(), commentController.createPostComment);
+        this.router.delete('/:id/comments/:commentId', authJwt(), commentController.deletePostComment);
     }
 }

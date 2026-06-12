@@ -9,7 +9,84 @@ const CATEGORIAS = [
   "Ação", "Aventura", "RPG", "Estratégia", "Esportes",
   "Corrida", "Simulação", "Terror", "Plataforma", "Puzzle",
   "Luta", "Tiro", "MMO", "Indie", "Outro",
-];
+] as const;
+
+const MAX_CATEGORIAS = 10;
+
+function parseCategories(value: string | null | undefined): string[] {
+  if (!value?.trim()) return [];
+  return [...new Set(value.split(",").map((tag) => tag.trim()).filter(Boolean))];
+}
+
+function joinCategories(categories: string[]): string | null {
+  if (categories.length === 0) return null;
+  return categories.join(", ");
+}
+
+function EtiquetasPicker({
+  categories,
+  onChange,
+}: {
+  categories: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [selectValue, setSelectValue] = useState("");
+
+  function addCategory(value: string) {
+    if (!value || categories.includes(value) || categories.length >= MAX_CATEGORIAS) return;
+    onChange([...categories, value]);
+    setSelectValue("");
+  }
+
+  function removeCategory(value: string) {
+    onChange(categories.filter((cat) => cat !== value));
+  }
+
+  const available = CATEGORIAS.filter((cat) => !categories.includes(cat));
+
+  return (
+    <div className="flex flex-col gap-2 flex-1">
+      <span className="text-white font-semibold text-sm">Etiquetas:</span>
+      <div className="flex gap-2">
+        <select
+          value={selectValue}
+          onChange={(e) => {
+            const value = e.target.value;
+            if (value) addCategory(value);
+            else setSelectValue("");
+          }}
+          disabled={available.length === 0 || categories.length >= MAX_CATEGORIAS}
+          className="flex-1 rounded-xl px-4 py-2 text-base text-gray-800 outline-none focus:ring-2 focus:ring-white/40 bg-white disabled:opacity-60"
+        >
+          <option value="">
+            {categories.length >= MAX_CATEGORIAS
+              ? "Limite de etiquetas atingido"
+              : "Adicionar etiqueta (ex: terror, ação)"}
+          </option>
+          {available.map((cat) => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
+        </select>
+      </div>
+      {categories.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => removeCategory(cat)}
+              className="inline-flex items-center gap-1 rounded-full bg-white/90 px-3 py-1 text-sm font-medium text-[#5b2fa0] hover:bg-white transition-colors"
+              aria-label={`Remover etiqueta ${cat}`}
+            >
+              {cat}
+              <span aria-hidden="true">×</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface Jogo {
   id: number;
@@ -133,7 +210,7 @@ function FormPublicacao({ jogo, onBack }: { jogo: Jogo; onBack: () => void }) {
   const { token } = useAuth();
   const [jaJoguei, setJaJoguei] = useState(false);
   const [opiniao, setOpiniao] = useState("");
-  const [category, setCategory] = useState("");
+  const [categories, setCategories] = useState<string[]>([]);
   const [rating, setRating] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -146,12 +223,14 @@ function FormPublicacao({ jogo, onBack }: { jogo: Jogo; onBack: () => void }) {
         if (data?.post) {
           setIsEditing(true);
           setOpiniao(data.post.content);
-          if (data.post.category) setCategory(data.post.category);
+          if (data.post.category) setCategories(parseCategories(data.post.category));
         }
         if (data?.rating) {
           if (data.rating.rating !== null) setRating(data.rating.rating);
           setJaJoguei(data.rating.played ?? false);
-          if (data.rating.category && !data.post?.category) setCategory(data.rating.category);
+          if (data.rating.category && !data.post?.category) {
+            setCategories(parseCategories(data.rating.category));
+          }
         }
       })
       .catch(() => {})
@@ -172,17 +251,19 @@ function FormPublicacao({ jogo, onBack }: { jogo: Jogo; onBack: () => void }) {
 
     setSubmitting(true);
     try {
+      const category = joinCategories(categories);
+
       await createPost(token, {
         content: opiniao.trim(),
         jogoId: jogo.id,
-        category: category || null,
+        category,
       });
 
       if (jaJoguei || rating > 0 || category) {
         await upsertRating(token, jogo.id, {
           rating: rating > 0 ? rating : null,
           played: jaJoguei,
-          category: category || null,
+          category,
         });
       }
 
@@ -251,19 +332,7 @@ function FormPublicacao({ jogo, onBack }: { jogo: Jogo; onBack: () => void }) {
           />
 
           <div className="flex flex-col sm:flex-row gap-6">
-            <div className="flex flex-col gap-1 flex-1">
-              <span className="text-white font-semibold text-sm">Etiquetas:</span>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="rounded-xl px-4 py-2 text-base text-gray-800 outline-none focus:ring-2 focus:ring-white/40 bg-white"
-              >
-                <option value="">Por exemplo terror, ação</option>
-                {CATEGORIAS.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
+            <EtiquetasPicker categories={categories} onChange={setCategories} />
 
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2">

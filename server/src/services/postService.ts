@@ -11,6 +11,7 @@ import { PostLikeRepository } from '../repositories/postLikeRepository.js';
 import { PostLike } from '../models/PostLike.js';
 import { sequelize } from '../config/sequelize.js';
 import { UserFollowRepository } from '../repositories/userFollowRepository.js';
+import { CommentService } from './commentService.js';
 
 export type PostMediaType = 'image' | 'video';
 
@@ -36,6 +37,27 @@ export interface PostListFilter {
 }
 
 const MAX_CONTENT_LENGTH = 10000;
+const MAX_CATEGORY_TAGS = 10;
+const MAX_CATEGORY_LENGTH = 255;
+
+export function parseCategoryTags(category: string | null | undefined): string[] {
+    if (!category?.trim()) return [];
+    return [...new Set(category.split(',').map((tag) => tag.trim()).filter(Boolean))];
+}
+
+function normalizeCategory(category: string | null | undefined): string | null {
+    if (category === undefined || category === null) return null;
+    const tags = parseCategoryTags(category);
+    if (tags.length === 0) return null;
+    if (tags.length > MAX_CATEGORY_TAGS) {
+        throw new AppError(`Máximo de ${MAX_CATEGORY_TAGS} etiquetas`, 400);
+    }
+    const joined = tags.join(', ');
+    if (joined.length > MAX_CATEGORY_LENGTH) {
+        throw new AppError(`Etiquetas excedem ${MAX_CATEGORY_LENGTH} caracteres`, 400);
+    }
+    return joined;
+}
 
 function normalizeContent(content: string | null | undefined): string {
     if (content === undefined || content === null) {
@@ -123,7 +145,7 @@ export class PostService {
         const userIds = [...new Set(posts.map((p) => p.userId))];
         const jogoIds = posts.map((p) => p.jogoId).filter((id): id is number => id !== null);
 
-        const [users, jogos, ratings, likesCountGroup, userLikes] = await Promise.all([
+        const [users, jogos, ratings, likesCountGroup, userLikes, commentsCountMap] = await Promise.all([
             userIds.length > 0
                 ? this.userRepository.findAll({
                     where: { id: { [Op.in]: userIds } },
@@ -160,6 +182,7 @@ export class PostService {
                     raw: true,
                 })
                 : Promise.resolve([]),
+            CommentService.countByPostIds(postIds),
         ]);
 
         const userMap = new Map(users.map((u) => [u.id, u]));
@@ -178,7 +201,7 @@ export class PostService {
             const user = userMap.get(p.userId);
             const jogo = p.jogoId ? jogoMap.get(p.jogoId) ?? null : null;
             const rating = p.jogoId ? ratingMap.get(`${p.userId}-${p.jogoId}`) ?? null : null;
-            const tagsFinais: string[] = p.category ? [p.category] : [];
+            const tagsFinais = parseCategoryTags(p.category);
 
             return {
                 id: p.id,
@@ -193,6 +216,7 @@ export class PostService {
                     : null,
                 likesCount: likesMap.get(p.id) ?? 0,
                 liked: likedSet.has(p.id),
+                commentsCount: commentsCountMap.get(p.id) ?? 0,
             };
         });
     }
@@ -200,7 +224,7 @@ export class PostService {
     async createPost(userId: number, input: CreatePostInput) {
         const media = normalizeMedia(input.mediaUrl, input.mediaType);
         const content = normalizeContent(input.content);
-        const category = input.category?.trim() || null;
+        const category = normalizeCategory(input.category);
 
         // One review per game: update existing instead of creating a duplicate
         if (input.jogoId) {
@@ -283,7 +307,7 @@ export class PostService {
         const updates: Partial<Pick<PostAttrs, 'content' | 'mediaUrl' | 'mediaType' | 'category'>> = {};
 
         if (input.content !== undefined) updates.content = normalizeContent(input.content);
-        if (input.category !== undefined) updates.category = input.category?.trim() || null;
+        if (input.category !== undefined) updates.category = normalizeCategory(input.category);
 
         if (input.mediaUrl !== undefined || input.mediaType !== undefined) {
             const mediaUrl = input.mediaUrl !== undefined ? input.mediaUrl : post.mediaUrl;
@@ -377,7 +401,7 @@ export class PostService {
         const jogoIds = posts.map((p) => p.jogoId).filter((id): id is number => id !== null);
         const user = await this.userRepository.findById(userId);
 
-        const [jogos, ratings, likesCountGroup, userLikes] = await Promise.all([
+        const [jogos, ratings, likesCountGroup, userLikes, commentsCountMap] = await Promise.all([
             jogoIds.length > 0
                 ? this.jogoRepository.findAll({
                     where: { id: { [Op.in]: jogoIds } },
@@ -403,6 +427,7 @@ export class PostService {
                     raw: true,
                 })
                 : Promise.resolve([]),
+            CommentService.countByPostIds(postIds),
         ]);
 
         const jogoMap = new Map(jogos.map((j) => [j.id, j]));
@@ -415,7 +440,7 @@ export class PostService {
         return posts.map((p) => {
             const jogo = p.jogoId ? jogoMap.get(p.jogoId) ?? null : null;
             const rating = p.jogoId ? ratingMap.get(`${p.userId}-${p.jogoId}`) ?? null : null;
-            const tagsFinais: string[] = p.category ? [p.category] : [];
+            const tagsFinais = parseCategoryTags(p.category);
             return {
                 id: p.id,
                 content: p.content,
@@ -427,6 +452,7 @@ export class PostService {
                 jogo: jogo ? { id: jogo.id, title: jogo.title, imageUrl: jogo.imageUrl, tags: tagsFinais } : null,
                 likesCount: likesMap.get(p.id) ?? 0,
                 liked: likedSet.has(p.id),
+                commentsCount: commentsCountMap.get(p.id) ?? 0,
             };
         });
     }
@@ -463,4 +489,4 @@ export class PostService {
         if (post.userId !== userId) throw new AppError('Sem permissão para excluir este post', 403);
         await this.postRepository.destroyById(id);
     }
-}
+}

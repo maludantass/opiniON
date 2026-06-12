@@ -212,6 +212,7 @@ export interface FeedPost {
   jogo: { id: number; title: string; imageUrl: string | null; tags: string[] } | null;
   likesCount?: number;
   liked?: boolean;
+  commentsCount?: number;
 }
 
 export interface PublicUser {
@@ -1031,9 +1032,46 @@ export async function getFollowingFeed(token: string, limit = 20): Promise<FeedP
   return result.data;
 }
 
-export async function getPostById(id: number): Promise<FeedPost> {
-  const response = await fetch(`${API_URL}/posts/${id}`);
+export async function getPostById(id: number, token?: string | null): Promise<FeedPost> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const response = await fetch(`${API_URL}/posts/${id}`, { headers });
   const result = await response.json();
   if (!response.ok) parseApiError(result, "Post não encontrado");
   return result.data;
+}
+
+export interface PostComment {
+  id: number;
+  postId: number;
+  content: string;
+  createdAt: string;
+  user: { id: number; username: string | null; avatarUrl: string | null; email: string } | null;
+}
+
+export async function getPostComments(postId: number): Promise<PostComment[]> {
+  const response = await fetch(`${API_URL}/posts/${postId}/comments`);
+  const result = await response.json();
+  if (!response.ok) parseApiError(result, "Erro ao carregar comentários");
+  return result.data;
+}
+
+export async function createPostComment(token: string, postId: number, content: string): Promise<PostComment> {
+  const response = await fetch(`${API_URL}/posts/${postId}/comments`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ content }),
+  });
+  const result = await response.json();
+  if (!response.ok) parseApiError(result, "Erro ao comentar");
+  return result.data;
+}
+
+export async function deletePostComment(token: string, postId: number, commentId: number): Promise<void> {
+  const response = await fetch(`${API_URL}/posts/${postId}/comments/${commentId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  const result = await response.json();
+  if (!response.ok) parseApiError(result, "Erro ao excluir comentário");
 }

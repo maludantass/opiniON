@@ -153,10 +153,10 @@ export default function Seguindo() {
           {/* Feed */}
           <section>
             <h1 className="text-3xl font-bold text-[#6C3BFF] mb-1">
-              Postagens de amigos
+              Feed
             </h1>
             <p className="text-sm text-gray-500 mb-8">
-              Veja o que seus amigos estão jogando e falando
+              Veja o que quem você segue está jogando e comentando
             </p>
 
             {loading ? (
@@ -192,7 +192,7 @@ export default function Seguindo() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => navigate("/buscar")}
+                  onClick={() => navigate("/comunidade")}
                   className="px-6 py-2 rounded-xl bg-[#6C3BFF] text-white text-sm font-semibold hover:bg-[#5b30e0] transition"
                 >
                   Encontrar gamers

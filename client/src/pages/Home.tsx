@@ -156,11 +156,12 @@ export function ReviewCard({
         )}
         <button
           type="button"
-          onClick={() => toast("Comentários em breve! 🚧", { icon: "💬" })}
-          aria-label="Comentar review"
-          className="text-gray-400 hover:text-[#6C3BFF] transition"
+          onClick={() => navigate(`/posts/${post.id}#comentarios`)}
+          aria-label="Ver comentários"
+          className="text-gray-400 hover:text-[#6C3BFF] transition flex items-center gap-1.5"
         >
           <ChatIcon />
+          <span className="text-xs font-semibold">{post.commentsCount ?? 0}</span>
         </button>
         {post.jogo && onList ? (
           <button

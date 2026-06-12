@@ -35,6 +35,7 @@ import {
 } from '../models/UserFollow.js';
 import { initUserRatingModel, setupUserRatingAssociations } from '../models/UserRating.js';
 import { initPostLikeModel, setupPostLikeAssociations } from '../models/PostLike.js';
+import { initPostCommentModel, setupPostCommentAssociations } from '../models/PostComment.js';
 import { initListaModel } from '../models/Lista.js';
 
 dotenv.config();
@@ -58,6 +59,7 @@ initJogoModel(sequelize);
 initPostModel(sequelize);
 initUserRatingModel(sequelize);
 initPostLikeModel(sequelize);
+initPostCommentModel(sequelize);
 initCommunityModel(sequelize);
 initCommunityMemberModel(sequelize);
 initCommunityEventModel(sequelize);
@@ -71,6 +73,7 @@ setupUserFollowAssociations();
 setupUserFollowScopes();
 setupUserRatingAssociations();
 setupPostLikeAssociations();
+setupPostCommentAssociations();
 setupCommunityMemberAssociations();
 setupCommunityEventAssociations();
 setupCommunityEventRsvpAssociations();

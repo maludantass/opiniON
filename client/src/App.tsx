@@ -36,7 +36,8 @@ function App() {
                 <Route path="/swipe" element={<PrivateRoute><Swipe /></PrivateRoute>} />
                 <Route path="/publicacao" element={<PrivateRoute><Publicacao /></PrivateRoute>} />
                 <Route path="/perfil" element={<PrivateRoute><Perfil /></PrivateRoute>} />
-                <Route path="/seguindo" element={<PrivateRoute><Seguindo /></PrivateRoute>} />
+                <Route path="/feed" element={<PrivateRoute><Seguindo /></PrivateRoute>} />
+                <Route path="/seguindo" element={<Navigate to="/feed" replace />} />
                 <Route path="/posts/:id" element={<PostDetalhe />} />
                 <Route path="*" element={<NotFound />} />
             </Routes>
