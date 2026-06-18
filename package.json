@@ -1,5 +1,12 @@
 {
+  "name": "opinion",
+  "version": "1.0.0",
+  "private": true,
   "type": "module",
+  "scripts": {
+    "postinstall": "cd server && npm install && cd ../client && npm install",
+    "build": "cd client && npm run build"
+  },
   "dependencies": {
     "@heroicons/react": "^2.2.0"
   }
