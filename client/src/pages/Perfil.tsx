@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   BarChart,
@@ -27,6 +27,7 @@ import {
   createLista,
   deleteLista,
   updateLista,
+  addJogoToLista,
   getMyPosts,
   updatePost,
   deletePost,
@@ -656,81 +657,63 @@ function DashboardTab({
 
 // ─── Meus Jogos Tab ───────────────────────────────────────────────────────────
 
-type JogosFilter = "todos" | "zerados" | "jogando" | "na_fila" | "dropados";
+type JogosFilter = "todos" | "salvos" | "publicados";
 
-function getStatusLabel(rating: UserRating): string {
-  if (rating.played) return "Zerado";
-  if (rating.favorited) return "Jogando";
-  if (rating.listed) return "Na fila";
-  return "Avaliado";
+function isPassOnly(r: UserRating): boolean {
+  return !r.favorited && r.rating === null && !r.listed && !r.played && !r.category;
 }
 
-function applyJogosFilter(
-  ratings: UserRating[],
-  filter: JogosFilter,
-): UserRating[] {
-  switch (filter) {
-    case "todos":
-      return ratings;
-    case "zerados":
-      return ratings.filter((r) => r.played);
-    case "jogando":
-      return ratings.filter((r) => r.favorited && !r.played);
-    case "na_fila":
-      return ratings.filter((r) => r.listed);
-    case "dropados":
-      return ratings.filter(
-        (r) => r.category === "dropado" || r.category === "dropped",
-      );
-    default:
-      return ratings;
-  }
-}
-
-function MeusJogosTab({ ratings }: { ratings: UserRating[] }) {
+function MeusJogosTab({ ratings, myPosts }: { ratings: UserRating[]; myPosts: FeedPost[] }) {
   const [filter, setFilter] = useState<JogosFilter>("todos");
   const [sort, setSort] = useState<"nota" | "recente">("nota");
   const [visible, setVisible] = useState(10);
 
+  const publishedJogoIds = useMemo(
+    () => new Set(myPosts.map((p) => p.jogo?.id).filter(Boolean)),
+    [myPosts],
+  );
+
   const counts = useMemo(
     () => ({
-      todos: ratings.length,
-      zerados: ratings.filter((r) => r.played).length,
-      jogando: ratings.filter((r) => r.favorited && !r.played).length,
-      na_fila: ratings.filter((r) => r.listed).length,
-      dropados: ratings.filter(
-        (r) => r.category === "dropado" || r.category === "dropped",
-      ).length,
+      todos: ratings.filter((r) => !isPassOnly(r)).length,
+      salvos: ratings.filter((r) => r.favorited).length,
+      publicados: ratings.filter((r) => r.jogo && publishedJogoIds.has(r.jogo.id)).length,
     }),
-    [ratings],
+    [ratings, publishedJogoIds],
   );
 
   const FILTERS: { key: JogosFilter; label: string }[] = [
     { key: "todos", label: `Todos (${counts.todos})` },
-    { key: "zerados", label: `Zerados (${counts.zerados})` },
-    { key: "jogando", label: `Jogando (${counts.jogando})` },
-    { key: "na_fila", label: `Na fila (${counts.na_fila})` },
-    { key: "dropados", label: `Dropados (${counts.dropados})` },
+    { key: "salvos", label: `Jogos salvos (${counts.salvos})` },
+    { key: "publicados", label: `Publicados (${counts.publicados})` },
   ];
 
   const filtered = useMemo(() => {
-    const f = applyJogosFilter(ratings, filter);
-    if (sort === "nota") {
-      return [...f].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+    let base: UserRating[];
+    switch (filter) {
+      case "salvos":
+        base = ratings.filter((r) => r.favorited);
+        break;
+      case "publicados":
+        base = ratings.filter((r) => r.jogo && publishedJogoIds.has(r.jogo.id));
+        break;
+      default:
+        base = ratings.filter((r) => !isPassOnly(r));
     }
-    return [...f].sort(
+    if (sort === "nota") {
+      return [...base].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+    }
+    return [...base].sort(
       (a, b) =>
         new Date(b.createdAt ?? 0).getTime() -
         new Date(a.createdAt ?? 0).getTime(),
     );
-  }, [ratings, filter, sort]);
+  }, [ratings, filter, sort, publishedJogoIds]);
 
   const filterTitle: Record<JogosFilter, string> = {
     todos: "Todos os Jogos",
-    zerados: "Zerados",
-    jogando: "Jogando",
-    na_fila: "Na fila",
-    dropados: "Dropados",
+    salvos: "Jogos Salvos",
+    publicados: "Publicados",
   };
 
   return (
@@ -800,7 +783,7 @@ function MeusJogosTab({ ratings }: { ratings: UserRating[] }) {
                       {jogo.title}
                     </p>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      {getStatusLabel(rating)}
+                      {rating.favorited ? "Salvo" : rating.rating !== null ? "Avaliado" : "Na fila"}
                     </p>
                   </div>
                   {rating.rating !== null && (
@@ -851,14 +834,33 @@ function formatTimeAgo(dateStr: string): string {
 function CreateListaModal({
   onClose,
   onCreate,
+  ratings,
 }: {
   onClose: () => void;
-  onCreate: (data: { title: string; description: string; type: "public" | "private" }) => Promise<void>;
+  onCreate: (data: { title: string; description: string; type: "public" | "private"; jogoIds: number[] }) => Promise<void>;
+  ratings: UserRating[];
 }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState<"public" | "private">("public");
   const [saving, setSaving] = useState(false);
+  const [selectedJogoIds, setSelectedJogoIds] = useState<number[]>([]);
+  const [search, setSearch] = useState("");
+
+  const availableJogos = useMemo(
+    () =>
+      ratings
+        .filter((r) => r.jogo)
+        .map((r) => r.jogo!)
+        .filter((j) => j.title.toLowerCase().includes(search.toLowerCase())),
+    [ratings, search],
+  );
+
+  function toggleJogo(jogoId: number) {
+    setSelectedJogoIds((prev) =>
+      prev.includes(jogoId) ? prev.filter((id) => id !== jogoId) : [...prev, jogoId],
+    );
+  }
 
   async function handleSubmit() {
     if (!title.trim()) {
@@ -867,11 +869,15 @@ function CreateListaModal({
     }
     setSaving(true);
     try {
-      await onCreate({ title, description, type });
+      await onCreate({ title, description, type, jogoIds: selectedJogoIds });
     } finally {
       setSaving(false);
     }
   }
+
+  const selectedJogos = ratings
+    .filter((r) => r.jogo && selectedJogoIds.includes(r.jogoId))
+    .map((r) => r.jogo!);
 
   return (
     <div
@@ -879,7 +885,7 @@ function CreateListaModal({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl"
+        className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
@@ -919,6 +925,76 @@ function CreateListaModal({
               rows={3}
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-purple-200"
             />
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">
+              Jogos ({selectedJogoIds.length} selecionado{selectedJogoIds.length !== 1 ? "s" : ""})
+            </label>
+
+            {selectedJogos.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {selectedJogos.map((j) => (
+                  <button
+                    key={j.id}
+                    type="button"
+                    onClick={() => toggleJogo(j.id)}
+                    className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-[#6C3BFF] text-white font-medium hover:bg-[#5b30e0] transition"
+                  >
+                    {j.title}
+                    <span className="ml-0.5 text-purple-200 text-[10px]">×</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar nos meus jogos..."
+              className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-200 mb-1"
+            />
+
+            <div className="border border-gray-200 rounded-xl overflow-hidden max-h-40 overflow-y-auto">
+              {availableJogos.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-4">
+                  {ratings.length === 0 ? "Nenhum jogo avaliado ainda." : "Nenhum jogo encontrado."}
+                </p>
+              ) : (
+                availableJogos.map((jogo) => {
+                  const selected = selectedJogoIds.includes(jogo.id);
+                  return (
+                    <button
+                      key={jogo.id}
+                      type="button"
+                      onClick={() => toggleJogo(jogo.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2 text-left text-sm transition border-b border-gray-50 last:border-0 ${
+                        selected ? "bg-purple-50" : "hover:bg-gray-50"
+                      }`}
+                    >
+                      {jogo.imageUrl ? (
+                        <img
+                          src={jogo.imageUrl}
+                          alt={jogo.title}
+                          className="h-8 w-6 rounded object-cover shrink-0"
+                        />
+                      ) : (
+                        <div className="h-8 w-6 rounded bg-purple-100 flex items-center justify-center text-xs shrink-0">🎮</div>
+                      )}
+                      <span className={`flex-1 truncate font-medium ${selected ? "text-[#6C3BFF]" : "text-gray-700"}`}>
+                        {jogo.title}
+                      </span>
+                      {selected && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6C3BFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
           </div>
 
           <div>
@@ -1159,8 +1235,9 @@ function ListaCard({
   onEdit?: (lista: Lista) => void;
 }) {
   const timeAgo = formatTimeAgo(lista.updatedAt);
-  const displayJogos = lista.jogos.slice(0, 3);
-  const extra = lista.jogos.length - 3;
+  const jogos = lista.jogos ?? [];
+  const displayJogos = jogos.slice(0, 3);
+  const extra = jogos.length - 3;
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm flex flex-col gap-3">
@@ -1183,18 +1260,18 @@ function ListaCard({
         {lista.jogoIds.length} {lista.jogoIds.length === 1 ? "jogo" : "jogos"} · atualizada {timeAgo}
       </p>
 
-      {lista.jogos.length > 0 && (
+      {jogos.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {displayJogos.map((j) => (
             <span
               key={j.id}
-              className="text-[10px] px-2 py-1 rounded-full bg-gray-100 text-gray-600 truncate max-w-[120px]"
+              className="text-[10px] px-2.5 py-1 rounded-full bg-[#6C3BFF] text-white font-medium truncate max-w-[120px]"
             >
               {j.title}
             </span>
           ))}
           {extra > 0 && (
-            <span className="text-[10px] px-2 py-1 rounded-full bg-gray-100 text-gray-500">
+            <span className="text-[10px] px-2.5 py-1 rounded-full bg-[#A78BFA] text-white font-medium">
               +{extra}
             </span>
           )}
@@ -1235,10 +1312,12 @@ function ListasTab({
   token,
   listas,
   setListas,
+  ratings,
 }: {
   token: string;
   listas: Lista[];
   setListas: React.Dispatch<React.SetStateAction<Lista[]>>;
+  ratings: UserRating[];
 }) {
   const [showModal, setShowModal] = useState(false);
   const [editingLista, setEditingLista] = useState<Lista | null>(null);
@@ -1247,9 +1326,17 @@ function ListasTab({
     title: string;
     description: string;
     type: "public" | "private";
+    jogoIds: number[];
   }) {
     try {
-      const nova = await createLista(token, data);
+      let nova = await createLista(token, data);
+      for (const jogoId of data.jogoIds) {
+        try {
+          nova = await addJogoToLista(token, nova.id, jogoId);
+        } catch {
+          // continue adding other games even if one fails
+        }
+      }
       setListas((prev) => [nova, ...prev]);
       setShowModal(false);
       toast.success("Lista criada!");
@@ -1289,6 +1376,7 @@ function ListasTab({
         <CreateListaModal
           onClose={() => setShowModal(false)}
           onCreate={handleCreate}
+          ratings={ratings}
         />
       )}
       {editingLista && (
@@ -1936,9 +2024,18 @@ function ConfiguracoesTab({
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+const VALID_TABS: ProfileTab[] = ["dashboard", "jogos", "listas", "salvos", "configuracoes"];
+
 export default function Perfil() {
   const { token, user } = useAuth();
-  const [activeTab, setActiveTab] = useState<ProfileTab>("dashboard");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab") as ProfileTab | null;
+  const activeTab: ProfileTab = VALID_TABS.includes(tabParam as ProfileTab) ? (tabParam as ProfileTab) : "dashboard";
+
+  function setActiveTab(tab: ProfileTab) {
+    setSearchParams({ tab }, { replace: true });
+  }
+
   const [ratings, setRatings] = useState<UserRating[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [users, setUsers] = useState<UserCompatibility[]>([]);
@@ -1987,9 +2084,9 @@ export default function Perfil() {
               {activeTab === "dashboard" && (
                 <DashboardTab ratings={ratings} stats={stats} users={users} />
               )}
-              {activeTab === "jogos" && <MeusJogosTab ratings={ratings} />}
+              {activeTab === "jogos" && <MeusJogosTab ratings={ratings} myPosts={myPosts} />}
               {activeTab === "listas" && token && (
-                <ListasTab token={token} listas={listas} setListas={setListas} />
+                <ListasTab token={token} listas={listas} setListas={setListas} ratings={ratings} />
               )}
               {activeTab === "salvos" && token && (
                 <SalvosTab ratings={ratings} listas={listas} token={token} myPosts={myPosts} setMyPosts={setMyPosts} />

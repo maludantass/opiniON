@@ -45,7 +45,7 @@ export const getFollowingFeed = async (req: Request, res: Response): Promise<voi
 
 export const getFeedPosts = async (req: Request, res: Response): Promise<void> => {
     try {
-        const limit = Math.min(Number(req.query['limit'] ?? 6), 20);
+        const limit = Math.min(Number(req.query['limit'] ?? 20), 50);
         const requestingUserId = req.authUserId ? Number(req.authUserId) : undefined;
         const data = await postService.listFeedPosts(
             Number.isFinite(limit) ? limit : 6,

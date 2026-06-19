@@ -303,7 +303,7 @@ export default function Home() {
     getJogos({ limit: 12 })
       .then(setJogos)
       .catch(() => {});
-    getFeedPosts(token, 6).then(setPosts).catch(() => {});
+    getFeedPosts(token, 20).then(setPosts).catch(() => {});
 
     getPublicUsers(20)
       .then((all) => setGamers(currentUserId ? all.filter((u) => u.id !== currentUserId).slice(0, 10) : all.slice(0, 10)))

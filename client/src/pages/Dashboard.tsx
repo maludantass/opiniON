@@ -38,9 +38,9 @@ function UserInitials({ username, avatarUrl }: { username: string | null; avatar
 const NAV_ITEMS = [
   { label: "Dashboard", path: "/dashboard" },
   { label: "Meus Jogos", path: "/buscar" },
-  { label: "Listas", path: null },
-  { label: "Curtidos", path: null },
-  { label: "Configurações", path: null },
+  { label: "Listas", path: "/perfil?tab=listas" },
+  { label: "Salvos", path: "/perfil?tab=salvos" },
+  { label: "Configurações", path: "/perfil?tab=configuracoes" },
 ];
 
 function Sidebar({ stats, currentPath }: { stats: DashboardStats | null; currentPath: string }) {

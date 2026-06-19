@@ -80,7 +80,14 @@ export async function updateLista(req: Request, res: Response): Promise<void> {
             ...(jogoIds !== undefined && { jogoIds }),
         });
 
-        sendSuccess(res, lista);
+        const jogos = lista.jogoIds.length > 0
+            ? (await Jogo.findAll({
+                where: { id: { [Op.in]: lista.jogoIds } },
+                attributes: ['id', 'title', 'imageUrl', 'tags'],
+            })).map(j => j.toJSON())
+            : [];
+
+        sendSuccess(res, { ...lista.toJSON(), jogos });
     } catch (e) {
         handleError(res, e);
     }
@@ -119,7 +126,14 @@ export async function addJogo(req: Request, res: Response): Promise<void> {
             await lista.update({ jogoIds: [...lista.jogoIds, jogoId] });
         }
 
-        sendSuccess(res, lista);
+        const jogos = lista.jogoIds.length > 0
+            ? (await Jogo.findAll({
+                where: { id: { [Op.in]: lista.jogoIds } },
+                attributes: ['id', 'title', 'imageUrl', 'tags'],
+            })).map(j => j.toJSON())
+            : [];
+
+        sendSuccess(res, { ...lista.toJSON(), jogos });
     } catch (e) {
         handleError(res, e);
     }

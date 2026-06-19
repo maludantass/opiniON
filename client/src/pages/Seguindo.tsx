@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { useAuth } from "../contexts/AuthContext";
@@ -98,10 +98,23 @@ function EmAltaWidget({ games }: { games: TrendingGame[] }) {
 export default function Seguindo() {
   const { token, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [friends, setFriends] = useState<PublicUser[]>([]);
   const [trending, setTrending] = useState<TrendingGame[]>([]);
+  const [showBanner, setShowBanner] = useState(false);
+  const [bannerTitle, setBannerTitle] = useState("");
+
+  useEffect(() => {
+    if (location.state?.publishedGameTitle) {
+      setBannerTitle(location.state.publishedGameTitle);
+      setShowBanner(true);
+      window.history.replaceState({}, document.title);
+      const timer = setTimeout(() => setShowBanner(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     if (!token || !user?.id) return;
@@ -155,9 +168,16 @@ export default function Seguindo() {
             <h1 className="text-3xl font-bold text-[#6C3BFF] mb-1">
               Feed
             </h1>
-            <p className="text-sm text-gray-500 mb-8">
+            <p className="text-sm text-gray-500 mb-5">
               Veja o que quem você segue está jogando e comentando
             </p>
+
+            {showBanner && (
+              <div className="mb-6 flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-5 py-3 text-sm font-semibold text-green-700 shadow-sm">
+                <span>✓</span>
+                <span>"{bannerTitle}" foi publicado com sucesso!</span>
+              </div>
+            )}
 
             {loading ? (
               <div className="flex flex-col gap-5">

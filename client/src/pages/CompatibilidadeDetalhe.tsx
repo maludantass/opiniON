@@ -274,7 +274,7 @@ export default function CompatibilidadeDetalhe() {
               {data.sharedFavoriteWorks.length > 0 && (
                 <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
                   <h3 className="text-base font-bold text-[#6C3BFF] mb-4">
-                    Obras favoritas em comum
+                    Jogos em comum
                   </h3>
                   <div className="flex gap-4 overflow-x-auto pb-2">
                     {data.sharedFavoriteWorks.map((work) => (

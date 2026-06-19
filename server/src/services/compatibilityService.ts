@@ -113,12 +113,17 @@ function jaccardSimilarity(setA: Set<number>, setB: Set<number>): number {
     return intersectionSize / unionSize;
 }
 
+function hasSaved(r: UserRating): boolean {
+    return r.favorited || r.rating !== null || r.listed || r.played;
+}
+
 function calculateScore(ratingsA: UserRating[], ratingsB: UserRating[]): {
     score: number;
     sharedRatings: number;
     sharedFavorites: number;
     sharedListed: number;
     sharedFavoriteIds: number[];
+    sharedSavedIds: number[];
 } {
     const mapA = new Map(ratingsA.map(r => [r.jogoId, r.rating]));
     const mapB = new Map(ratingsB.map(r => [r.jogoId, r.rating]));
@@ -146,12 +151,16 @@ function calculateScore(ratingsA: UserRating[], ratingsB: UserRating[]): {
     const sharedFavorites = sharedFavoriteIds.length;
     const sharedListed = [...listedA].filter(x => listedB.has(x)).length;
 
+    const savedA = new Set(ratingsA.filter(hasSaved).map(r => r.jogoId));
+    const savedB = new Set(ratingsB.filter(hasSaved).map(r => r.jogoId));
+    const sharedSavedIds = [...savedA].filter(x => savedB.has(x));
+
     const hasRatings = commonRated.length > 0;
     const hasFavs = favsA.size > 0 || favsB.size > 0;
     const hasListed = listedA.size > 0 || listedB.size > 0;
 
     if (!hasRatings && !hasFavs && !hasListed) {
-        return { score: 0, sharedRatings: 0, sharedFavorites: 0, sharedListed: 0, sharedFavoriteIds: [] };
+        return { score: 0, sharedRatings: 0, sharedFavorites: 0, sharedListed: 0, sharedFavoriteIds: [], sharedSavedIds: [] };
     }
 
     let weighted = 0;
@@ -164,7 +173,7 @@ function calculateScore(ratingsA: UserRating[], ratingsB: UserRating[]): {
     const normalized = totalWeight > 0 ? weighted / totalWeight : 0;
     const score = Math.round(normalized * 100);
 
-    return { score, sharedRatings: commonRated.length, sharedFavorites, sharedListed, sharedFavoriteIds };
+    return { score, sharedRatings: commonRated.length, sharedFavorites, sharedListed, sharedFavoriteIds, sharedSavedIds };
 }
 
 function toLabel(score: number): CompatibilityLabel {
@@ -245,7 +254,7 @@ export class CompatibilityService {
             this.userRatingRepository.findByUserId(targetUserId),
         ]);
 
-        const { score, sharedRatings, sharedFavorites, sharedListed, sharedFavoriteIds } =
+        const { score, sharedRatings, sharedFavorites, sharedListed, sharedSavedIds } =
             calculateScore(myRatings, theirRatings);
 
         const myRatingMap = new Map(myRatings.map(r => [r.jogoId, r.rating]));
@@ -254,9 +263,9 @@ export class CompatibilityService {
         let sharedFavoriteWorks: SharedWork[] = [];
         let commonTags: string[] = [];
 
-        if (sharedFavoriteIds.length > 0) {
+        if (sharedSavedIds.length > 0) {
             const jogos = await this.jogoRepository.findAll({
-                where: { id: { [Op.in]: sharedFavoriteIds } },
+                where: { id: { [Op.in]: sharedSavedIds } },
                 attributes: ['id', 'title', 'imageUrl', 'tags'],
             });
 

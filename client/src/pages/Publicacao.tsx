@@ -268,7 +268,7 @@ function FormPublicacao({ jogo, onBack }: { jogo: Jogo; onBack: () => void }) {
       }
 
       toast.success(isEditing ? "Review atualizada!" : "Publicado com sucesso!");
-      navigate("/", { state: { publishedGameTitle: jogo.title } });
+      navigate("/seguindo", { state: { publishedGameTitle: jogo.title } });
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Erro ao publicar.");
     } finally {

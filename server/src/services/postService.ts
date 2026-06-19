@@ -323,10 +323,10 @@ export class PostService {
         return toPublicPost(updatedPost);
     }
 
-    async listFeedPosts(limit = 6, requestingUserId?: number) {
+    async listFeedPosts(limit = 20, requestingUserId?: number) {
         const posts = await this.postRepository.findAll({
             limit,
-            order: [['createdAt', 'DESC']],
+            order: [['updatedAt', 'DESC']],
         });
         return this.enrichPosts(posts, requestingUserId);
     }
@@ -378,13 +378,15 @@ export class PostService {
 
     async listFollowingFeed(followerId: number, limit = 20) {
         const followedUsers = await this.userFollowRepository.findFollowingUsers(followerId, 1000, 0);
-        if (followedUsers.length === 0) return [];
 
         const followedIds = followedUsers.map((u) => u.id);
+        // include own posts alongside followed users
+        const authorIds = [...new Set([followerId, ...followedIds])];
+
         const posts = await this.postRepository.findAll({
-            where: { userId: { [Op.in]: followedIds } } as any,
+            where: { userId: { [Op.in]: authorIds } } as any,
             limit: Math.min(limit, 50),
-            order: [['createdAt', 'DESC']],
+            order: [['updatedAt', 'DESC']],
         });
         return this.enrichPosts(posts, followerId);
     }

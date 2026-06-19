@@ -244,7 +244,7 @@ export async function getMyPosts(token: string): Promise<FeedPost[]> {
   return result.data;
 }
 
-export async function getFeedPosts(token?: string | null, limit = 6): Promise<FeedPost[]> {
+export async function getFeedPosts(token?: string | null, limit = 20): Promise<FeedPost[]> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
   const response = await fetch(`${API_URL}/posts/feed?limit=${limit}`, { headers });
