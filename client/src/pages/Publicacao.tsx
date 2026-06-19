@@ -280,6 +280,14 @@ function FormPublicacao({ jogo, onBack }: { jogo: Jogo; onBack: () => void }) {
     ? `${jogo.title} (${jogo.releaseYear})`
     : jogo.title;
 
+  if (loadingExisting) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
+        <p className="text-white/80 text-sm font-medium">Carregando dados do jogo...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
       <h1 className="text-4xl font-extrabold text-white tracking-tight mb-2">

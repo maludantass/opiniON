@@ -349,7 +349,7 @@ function MonthlyActivityChart({ ratings }: { ratings: UserRating[] }) {
           width={20}
         />
         <Tooltip
-          formatter={(v: number) => [`${v} interação(ões)`, "Atividade"]}
+          formatter={(value) => [`${Number(value ?? 0)} interação(ões)`, "Atividade"]}
           contentStyle={{
             borderRadius: 12,
             fontSize: 12,
@@ -406,7 +406,7 @@ function DnaGamerChart({ data }: { data: { tag: string; count: number }[] }) {
           strokeWidth={2}
         />
         <Tooltip
-          formatter={(v: number) => [`${v} interação(ões)`, "DNA"]}
+          formatter={(value) => [`${Number(value ?? 0)} interação(ões)`, "DNA"]}
           contentStyle={{
             borderRadius: 12,
             fontSize: 12,
